@@ -5,8 +5,8 @@ pkgdesc="Pokénux is a modern Textual TUI to explore Pokémon and cards, play qu
 arch=('any')
 url="https://github.com/FrancoisBasset/pokenux"
 license=('MIT')
-depends=('python>=3.14')
-makedepends=('python-build' 'python-installer' 'python-poetry-core')
+depends=('python>=3.14' 'python-requests')
+makedepends=('python-build' 'python-installer' 'python-hatchling')
 
 build() {
   cd "$startdir"

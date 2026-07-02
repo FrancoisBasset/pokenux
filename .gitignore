@@ -1,4 +1,4 @@
-poetry.lock
+uv.lock
 __pycache__
 dist
 pkg
