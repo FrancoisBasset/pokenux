@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from pokenux.models.pokemon_evolution import PokemonEvolution
-from pokenux.models.pokemon_mega_evolution import PokemonMegaEvolution
+from pokenux.models.pokemon.pokemon_evolution import PokemonEvolution
+from pokenux.models.pokemon.pokemon_mega_evolution import PokemonMegaEvolution
 
 
 @dataclass

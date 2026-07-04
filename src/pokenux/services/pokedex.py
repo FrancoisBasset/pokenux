@@ -1,4 +1,4 @@
-from pokenux.models.pokemon import Pokemon
+from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.services import jsons
 
 

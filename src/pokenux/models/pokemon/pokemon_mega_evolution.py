@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from pokenux.models.pokemon_sprite import PokemonSprite
+from pokenux.models.pokemon.pokemon_sprite import PokemonSprite
 
 
 @dataclass

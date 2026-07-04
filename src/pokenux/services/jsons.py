@@ -1,6 +1,6 @@
 import json
 
-from pokenux.models.pokemon import Pokemon
+from pokenux.models.pokemon.pokemon import Pokemon
 
 
 def get_all_pokemon_from_jsons() -> list[Pokemon]:
