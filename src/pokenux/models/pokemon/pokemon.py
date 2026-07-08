@@ -8,7 +8,6 @@ from pokenux.models.pokemon.pokemon_stat import PokemonStat
 from pokenux.models.pokemon.pokemon_resistance import PokemonResistance
 from pokenux.models.pokemon.pokemon_evolutions import PokemonEvolutions
 from pokenux.models.pokemon.pokemon_sex import PokemonSex
-from pokenux.services.utils import filter_valid_fields
 
 
 @dataclass
@@ -44,4 +43,4 @@ class Pokemon:
         if data["sex"] is not None:
             data["sex"] = PokemonSex(**data["sex"])
 
-        return cls(**filter_valid_fields(data, cls))
+        return cls(**data)
