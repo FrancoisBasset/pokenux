@@ -1,5 +1,9 @@
+import locale
+
 from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.services import jsons
+
+import random
 
 
 class Pokedex:
@@ -26,3 +30,16 @@ class Pokedex:
         return [
             pokemon for pokemon in self.all_pokemon if pokemon.generation == generation
         ]
+
+    def get_random_pokemon(self) -> Pokemon:
+        return random.choice(self.all_pokemon)
+
+    def get_all_pokemon_by_initial(self, letter: str) -> list[Pokemon]:
+        all_pokemon: list[Pokemon] = [
+            pokemon
+            for pokemon in self.all_pokemon
+            if pokemon.name.fr[0] == letter.upper()
+        ]
+        all_pokemon.sort(key=lambda p: locale.strxfrm(p.name.fr))
+
+        return all_pokemon
