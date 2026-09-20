@@ -1,10 +1,10 @@
-from pokenux.services.user_data import UserData
+from pokenux.services import user_data
 
 
 class TcgLibrary:
     def __init__(self, language: str):
         self.language = language
-        self.series = UserData.get_all_series(language)
+        self.series = user_data.get_all_series(language)
 
     def get_serie_by_id(self, id: str):
         series = [serie for serie in self.series if serie.id == id]

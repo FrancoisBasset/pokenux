@@ -4,116 +4,119 @@ from typing import Callable
 from urllib.request import urlopen
 from zipfile import ZipFile
 
-from tcgdexsdk import Serie
 import tomlkit
+from tcgdexsdk import Serie
 
 from pokenux.models.pokemon.pokemon import Pokemon
 
 
-class UserData:
-    path: str
-    config_path: str
-    assets_path: str
-    config_file: tomlkit.TOMLDocument
+path: Path
+config_path: Path
+assets_path: Path
+config_file: tomlkit.TOMLDocument
 
-    @staticmethod
-    def init():
-        UserData.path = str(Path.home()) + "/.local/share/pokenux"
-        UserData.assets_path = UserData.path + "/assets"
-        UserData.config_path = UserData.path + "/config.toml"
 
-        if not Path.exists(UserData.path):
-            Path.mkdir(UserData.path)
+def init():
+    global path, config_path, assets_path, config_file
 
-        if not Path.exists(UserData.config_path):
-            Path.touch(UserData.config_path)
+    path = Path.home() / ".local" / "share" / "pokenux"
+    assets_path = path / "assets"
+    config_path = path / "config.toml"
 
-        UserData.config_file = tomlkit.load(open(UserData.config_path))
+    path.mkdir(parents=True, exist_ok=True)
+    config_path.touch(exist_ok=True)
 
-    @staticmethod
-    def assets_are_missing() -> bool:
-        return (
-            not Path.exists(UserData.assets_path)
-            or len(list(Path(UserData.assets_path).glob("**/*"))) == 0
-        )
+    with config_path.open("r") as file:
+        config_file = tomlkit.load(file)
 
-    @staticmethod
-    def download_assets(cancelled: Callable[[], bool]) -> bool:
-        url = "https://github.com/FrancoisBasset/pokenux/releases/download/1.0.0/pokenux-data.zip"
 
-        path = Path(UserData.path)
-        zip_path = path / "pokemon-data.zip"
+def assets_are_missing() -> bool:
+    return (
+        not assets_path.exists()
+        or not any(assets_path.iterdir())
+    )
 
-        try:
-            with urlopen(url) as response:
-                with zip_path.open("wb") as file:
-                    while chunk := response.read(1024 * 1024):
-                        if cancelled():
-                            return False
 
-                        file.write(chunk)
+def download_assets(cancelled: Callable[[], bool]) -> bool:
+    url = (
+        "https://github.com/FrancoisBasset/pokenux/releases/"
+        "download/1.0.0/pokenux-data.zip"
+    )
 
-            if cancelled():
-                return False
+    zip_path = path / "pokemon-data.zip"
 
-            # Extract
-            with ZipFile(zip_path, "r") as zip_file:
-                for member in zip_file.infolist():
+    try:
+        with urlopen(url) as response:
+            with zip_path.open("wb") as file:
+                while chunk := response.read(1024 * 1024):
                     if cancelled():
                         return False
 
-                    zip_file.extract(member, path)
+                    file.write(chunk)
 
-            return True
+        if cancelled():
+            return False
 
-        finally:
-            zip_path.unlink(missing_ok=True)
+        with ZipFile(zip_path, "r") as zip_file:
+            for member in zip_file.infolist():
+                if cancelled():
+                    return False
 
-    @staticmethod
-    def save_config():
-        with open(UserData.config_path, "w") as file:
-            tomlkit.dump(UserData.config_file, file)
+                zip_file.extract(member, path)
 
-    @staticmethod
-    def get_all_pokemon() -> list[Pokemon]:
-        with open(UserData.path + "/assets/data/pokemon.json", "r") as f:
-            return [Pokemon.from_dict(data) for data in json.load(f)]
+        return True
 
-    @staticmethod
-    def get_all_series(language: str) -> list[Serie]:
-        with open(f"{UserData.path}/assets/data/tcg_{language}.json", "r") as f:
-            return [Serie.from_dict(data) for data in json.load(f)]
+    finally:
+        zip_path.unlink(missing_ok=True)
 
-    @staticmethod
-    def get_all_generations() -> list[str]:
-        with open(UserData.path + "/assets/data/generations.json", "r") as f:
-            return json.load(f)
 
-    @staticmethod
-    def get_all_types() -> list:
-        with open(UserData.path + "/assets/data/types.json", "r") as f:
-            return json.load(f)
+def save_config():
+    with config_path.open("w") as file:
+        tomlkit.dump(config_file, file)
 
-    @staticmethod
-    def get_app_lang() -> str:
-        return UserData.config_file.get("app_lang", "en")
 
-    @staticmethod
-    def get_pokemon_lang() -> str:
-        return UserData.config_file.get("pokemon_lang", "en")
+def get_all_pokemon() -> list[Pokemon]:
+    with open(assets_path / "data" / "pokemon.json", "r") as file:
+        return [Pokemon.from_dict(data) for data in json.load(file)]
 
-    @staticmethod
-    def get_tcg_lang() -> str:
-        return UserData.config_file.get("tcg_lang", "en")
 
-    @staticmethod
-    def set_app_lang(lang: str):
-        UserData.config_file["app_lang"] = lang
+def get_all_series(language: str) -> list[Serie]:
+    with open(assets_path / "data" / f"tcg_{language}.json", "r") as file:
+        return [Serie.from_dict(data) for data in json.load(file)]
 
-    @staticmethod
-    def set_pokemon_lang(lang: str):
-        UserData.config_file["pokemon_lang"] = lang
 
-    @staticmethod
-    def set_tcg_lang(lang: str):
-        UserData.config_file["tcg_lang"] = lang
+def get_all_generations() -> list[str]:
+    with open(assets_path / "data" / "generations.json", "r") as file:
+        return json.load(file)
+
+
+def get_all_types() -> list:
+    with open(assets_path / "data" / "types.json", "r") as file:
+        return json.load(file)
+
+
+def get_app_lang() -> str:
+    return config_file.get("app_lang", "en")
+
+
+def get_pokemon_lang() -> str:
+    return config_file.get("pokemon_lang", "en")
+
+
+def get_tcg_lang() -> str:
+    return config_file.get("tcg_lang", "en")
+
+
+def set_app_lang(lang: str):
+    config_file["app_lang"] = lang
+
+
+def set_pokemon_lang(lang: str):
+    config_file["pokemon_lang"] = lang
+
+
+def set_tcg_lang(lang: str):
+    config_file["tcg_lang"] = lang
+
+
+init()

@@ -4,7 +4,7 @@ from textual.containers import Vertical
 from textual.widgets import Button, Label, Select
 
 from pokenux.textual.utils import i18n
-from pokenux.services.user_data import UserData
+from pokenux.services import user_data
 from pokenux.textual.utils.enums import languages
 from pokenux.textual.utils.translator import Translator
 
@@ -20,16 +20,16 @@ class ParametersView(Vertical):
 
     def on_mount(self):
         self.app_lang: Select = self.query_one("#app_lang", Select)
-        if UserData.get_app_lang():
-            self.app_lang.value = UserData.get_app_lang()
+        if user_data.get_app_lang():
+            self.app_lang.value = user_data.get_app_lang()
 
         self.tcg_lang: Select = self.query_one("#tcg_lang", Select)
-        if UserData.get_tcg_lang():
-            self.tcg_lang.value = UserData.get_tcg_lang()
+        if user_data.get_tcg_lang():
+            self.tcg_lang.value = user_data.get_tcg_lang()
 
         self.pokemon_lang: Select = self.query_one("#pokemon_lang", Select)
-        if UserData.get_pokemon_lang():
-            self.pokemon_lang.value = UserData.get_pokemon_lang()
+        if user_data.get_pokemon_lang():
+            self.pokemon_lang.value = user_data.get_pokemon_lang()
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -53,10 +53,10 @@ class ParametersView(Vertical):
 
     @on(Button.Pressed, "#save_button")
     def on_save_button_pressed(self):
-        UserData.set_app_lang(self.app_lang.value)
-        UserData.set_tcg_lang(self.tcg_lang.value)
-        UserData.set_pokemon_lang(self.pokemon_lang.value)
-        UserData.save_config()
-        
+        user_data.set_app_lang(self.app_lang.value)
+        user_data.set_tcg_lang(self.tcg_lang.value)
+        user_data.set_pokemon_lang(self.pokemon_lang.value)
+        user_data.save_config()
+
         i18n.set_language(self.app_lang.value)
         Translator(self.app).translate_app()

@@ -1,10 +1,10 @@
-from pokenux.services.user_data import UserData
+from pokenux.services import user_data
 from pokenux.textual.utils import i18n
 
-UserData.init()
-i18n.set_language(UserData.get_app_lang())
+i18n.set_language(user_data.get_app_lang())
 
 languages: list = [("Français", "fr"), ("English", "en")]
+
 
 def sort_by():
     return [
@@ -13,6 +13,7 @@ def sort_by():
         (i18n.trans("by_type"), "by_type"),
         (i18n.trans("by_evolution"), "by_evolution"),
     ]
+
 
 def evolutions():
     return [

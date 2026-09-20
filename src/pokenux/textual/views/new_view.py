@@ -42,7 +42,7 @@ class NewView(Horizontal):
         new_pane = TabPane(
             f"{label} [bold @click=app.close_tab({tab_id!r})]×[/]",
             tab_class(),
-            id=tab_id
+            id=tab_id,
         )
         await self.tabbed_content.add_pane(new_pane, before="new_tab_tab")
         self.app.set_focus(None)

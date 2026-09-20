@@ -4,7 +4,7 @@ from textual_image.widget import Image
 
 from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.services.pokedex import Pokedex
-from pokenux.services.user_data import UserData
+from pokenux.services import user_data
 
 
 class RandomPokemonWidget(Widget):
@@ -19,10 +19,8 @@ class RandomPokemonWidget(Widget):
         height: 5;
     }
     """
-    
+
     def compose(self) -> ComposeResult:
         pokemon: Pokemon = Pokedex().get_random_pokemon()
 
-        yield Image(
-            f"{UserData.path}/assets/images/pokemon/{pokemon.pokedex_id}.png"
-        )
+        yield Image(f"{user_data.path}/assets/images/pokemon/{pokemon.pokedex_id}.png")

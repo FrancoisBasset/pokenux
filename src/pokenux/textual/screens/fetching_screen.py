@@ -4,7 +4,7 @@ from textual.screen import Screen
 from textual.worker import get_current_worker
 from textual.widgets import Footer, Label, LoadingIndicator
 
-from pokenux.services.user_data import UserData
+from pokenux.services import user_data
 
 
 class FetchingScreen(Screen[bool]):
@@ -36,7 +36,7 @@ class FetchingScreen(Screen[bool]):
     def fetch(self) -> None:
         worker = get_current_worker()
 
-        finished = UserData.download_assets(
+        finished = user_data.download_assets(
             cancelled=lambda: worker.is_cancelled,
         )
 

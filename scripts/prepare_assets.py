@@ -8,9 +8,7 @@ from pokenux.services.pokedex import Pokedex
 
 def prepare_pokemon_json():
     all_pokemon_json = [
-        pokemon
-        for pokemon in tyradex.fetch_all_pokemon()
-        if pokemon["pokedex_id"] != 0
+        pokemon for pokemon in tyradex.fetch_all_pokemon() if pokemon["pokedex_id"] != 0
     ]
 
     types = {
@@ -48,6 +46,7 @@ def prepare_pokemon_json():
     with open("src/pokenux/assets/data/pokemon.json", "w") as f:
         f.write(json.dumps(all_pokemon_json))
 
+
 def prepare_pokemon_generations_json():
     all_generations_json = tyradex.fetch_all_generations()
 
@@ -58,16 +57,17 @@ def prepare_pokemon_generations_json():
     with open("src/pokenux/assets/data/generations.json", "w") as f:
         f.write(json.dumps(generations))
 
+
 def get_pokemon_types_json() -> list:
     types = []
 
     for pokemon_type in tyradex.fetch_all_types():
-        types.append({
-            "fr": pokemon_type["name"]["fr"],
-            "en": pokemon_type["name"]["en"]
-        })
+        types.append(
+            {"fr": pokemon_type["name"]["fr"], "en": pokemon_type["name"]["en"]}
+        )
 
     return types
+
 
 def prepare_pokemon_types_json():
     with open("src/pokenux/assets/data/types.json", "w") as f:
@@ -79,9 +79,8 @@ def prepare_tcg_json():
 
     for language in languages:
         fetched_series = [
-            serie
-            for serie in tcgdex.fetch_all_series(language)
-            if "logo" in serie]
+            serie for serie in tcgdex.fetch_all_series(language) if "logo" in serie
+        ]
 
         series = []
 
@@ -110,7 +109,7 @@ def prepare_tcg_json():
                     "cards": [],
                     "serie_id": serie["id"],
                 }
-                
+
                 if "logo" in set_details:
                     set["logo"] = set_details["logo"] + ".png"
                 if "symbol" in set_details:

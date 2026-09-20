@@ -4,14 +4,14 @@ from pokenux.models.pokemon.pokemon import Pokemon
 
 import random
 
-from pokenux.services.user_data import UserData
+from pokenux.services import user_data
 
 
 class Pokedex:
     all_pokemon: list[Pokemon]
 
     def __init__(self):
-        self.all_pokemon = UserData.get_all_pokemon()
+        self.all_pokemon = user_data.get_all_pokemon()
 
     def get_pokemon_by_id(self, id: int) -> Pokemon | None:
         pokemons: list[Pokemon] = [
@@ -45,22 +45,30 @@ class Pokedex:
 
         return all_pokemon
 
-    def filter_pokemon(self, generation: list[str], types: list[str], evolutions: list[str]) -> list[Pokemon]:
+    def filter_pokemon(
+        self, generation: list[str], types: list[str], evolutions: list[str]
+    ) -> list[Pokemon]:
         filtered_pokemon: list[Pokemon] = self.all_pokemon
 
         if generation:
             filtered_pokemon = [
-                pokemon for pokemon in filtered_pokemon if str(pokemon.generation) in generation
+                pokemon
+                for pokemon in filtered_pokemon
+                if str(pokemon.generation) in generation
             ]
 
         if types:
             filtered_pokemon = [
-                pokemon for pokemon in filtered_pokemon if any(t["name"] in types for t in pokemon.types)
+                pokemon
+                for pokemon in filtered_pokemon
+                if any(t["name"] in types for t in pokemon.types)
             ]
 
         if evolutions:
             filtered_pokemon = [
-                pokemon for pokemon in filtered_pokemon if any(e in evolutions for e in pokemon.evolutions)
+                pokemon
+                for pokemon in filtered_pokemon
+                if any(e in evolutions for e in pokemon.evolutions)
             ]
 
         return filtered_pokemon
