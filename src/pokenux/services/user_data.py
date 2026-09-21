@@ -5,9 +5,9 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import tomlkit
-from tcgdexsdk import Serie
 
 from pokenux.models.pokemon.pokemon import Pokemon
+from pokenux.models.tcg.serie import Serie
 
 
 path: Path
@@ -31,10 +31,7 @@ def init():
 
 
 def assets_are_missing() -> bool:
-    return (
-        not assets_path.exists()
-        or not any(assets_path.iterdir())
-    )
+    return not assets_path.exists() or not any(assets_path.iterdir())
 
 
 def download_assets(cancelled: Callable[[], bool]) -> bool:

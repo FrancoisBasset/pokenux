@@ -1,12 +1,10 @@
 import random
 
 from pokenux.models.pokemon.pokemon import Pokemon
-from pokenux.services.pokedex import Pokedex
+from pokenux.services import pokedex
 
 
 def get_random_pokemon_evolution() -> tuple[str, str]:
-    pokedex = Pokedex()
-
     all_pokemon_with_evolution: list[Pokemon] = [
         pokemon for pokemon in pokedex.all_pokemon if pokemon.evolution.next is not None
     ]

@@ -2,14 +2,13 @@ from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.models.tcg.card import Card
 from pokenux.models.tcg.serie import Serie
 from pokenux.models.tcg.set import Set
+from pokenux.services import pokedex
 from pokenux.services.games import anagram, evolution
-from pokenux.services.pokedex import Pokedex
-from pokenux.services.tcg_library import TcgLibrary
+from pokenux.services import tcg_library
 from pokenux.textual.pokenux import Pokenux
 
 
 def show_all():
-    tcg_library = TcgLibrary("fr")
     for serie in tcg_library.series:
         print(f"Serie: {serie.name} {serie.id}")
         for set in serie.sets:
@@ -44,11 +43,9 @@ def guess_anagram():
 
 
 def test():
-    pokedex: Pokedex = Pokedex()
     chochodile: Pokemon = pokedex.get_pokemon_by_name("Chochodile", "fr")
     print(chochodile.name.fr)
 
-    tcg_library = TcgLibrary("fr")
     serie: Serie = tcg_library.get_serie_by_id("sv")
     print(serie.name)
     set: Set = tcg_library.get_set_by_id("sv02")
@@ -59,8 +56,6 @@ def test():
 
 
 def search_pokemon_card():
-    tcg_library = TcgLibrary("fr")
-
     chochodiles: list[Card] = tcg_library.get_cards_by_name("Chochodile")
     for chochodile in chochodiles:
         set: Set = tcg_library.get_set_by_id(chochodile.set_id)
@@ -91,7 +86,7 @@ def guess_pre_evolution():
 
 
 def complete_name():
-    pokemon_name: str = Pokedex().get_random_pokemon().name.fr.lower()
+    pokemon_name: str = pokedex.get_random_pokemon().name.fr.lower()
 
     response: str = ""
 
@@ -108,7 +103,7 @@ def complete_name():
 def guess_all_pokemon_by_initial():
     letter: str = input("Lettre : ")
 
-    all_pokemon_to_guess = Pokedex().get_all_pokemon_by_initial(letter)
+    all_pokemon_to_guess = pokedex.get_all_pokemon_by_initial(letter)
     all_pokemon_names = [pokemon.name.fr.lower() for pokemon in all_pokemon_to_guess]
 
     count: int = 0
@@ -130,7 +125,7 @@ def guess_all_pokemon_by_initial():
 
 
 def guess_pokemon_by_pokedex_id():
-    pokemon: Pokemon = Pokedex().get_random_pokemon()
+    pokemon: Pokemon = pokedex.get_random_pokemon()
 
     response: str = input(f"Nom du Pokémon #{pokemon.pokedex_id} : ")
     if response.lower() == pokemon.name.fr.lower():
@@ -140,7 +135,7 @@ def guess_pokemon_by_pokedex_id():
 
 
 def guess_pokemon_id():
-    pokemon: Pokemon = Pokedex().get_random_pokemon()
+    pokemon: Pokemon = pokedex.get_random_pokemon()
 
     response: str = input(f"ID du Pokémon {pokemon.name.fr} : ")
     if response.lower() == pokemon.pokedex_id:

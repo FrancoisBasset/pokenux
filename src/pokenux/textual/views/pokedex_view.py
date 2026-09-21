@@ -4,7 +4,7 @@ from textual.containers import Container, Grid, Horizontal, Vertical, VerticalSc
 from textual.widgets import Checkbox, Input, Label, Select
 
 from pokenux.models.pokemon.pokemon import Pokemon
-from pokenux.services.pokedex import Pokedex
+from pokenux.services import pokedex
 from pokenux.services import user_data
 from pokenux.textual.utils import enums, i18n
 
@@ -19,7 +19,7 @@ class PokedexView(Vertical):
         self.load_data()
 
     def load_data(self):
-        self.pokemon_list = Pokedex().filter_pokemon(
+        self.pokemon_list = pokedex.filter_pokemon(
             self.active_generations,
             self.active_types,
             self.active_evolutions,

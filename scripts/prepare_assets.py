@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 from urllib.request import urlretrieve
 
+from pokenux.services import pokedex
 from pokenux.services.api import tcgdex, tyradex
-from pokenux.services.pokedex import Pokedex
 
 
 def prepare_pokemon_json():
@@ -141,7 +141,7 @@ def prepare_pokemon_images():
     if not Path("src/pokenux/assets/images/pokemon").exists():
         Path("src/pokenux/assets/images/pokemon").mkdir(parents=True, exist_ok=True)
 
-    for pokemon in Pokedex().all_pokemon:
+    for pokemon in pokedex.all_pokemon:
         if not Path(
             f"src/pokenux/assets/images/pokemon/{pokemon.pokedex_id}.png"
         ).exists():

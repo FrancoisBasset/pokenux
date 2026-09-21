@@ -6,7 +6,7 @@ from textual.widgets import Button, Label, Select
 from pokenux.textual.utils import i18n
 from pokenux.services import user_data
 from pokenux.textual.utils.enums import languages
-from pokenux.textual.utils.translator import Translator
+from pokenux.textual.utils import translator
 
 
 class ParametersView(Vertical):
@@ -59,4 +59,4 @@ class ParametersView(Vertical):
         user_data.save_config()
 
         i18n.set_language(self.app_lang.value)
-        Translator(self.app).translate_app()
+        translator.translate_app(self.app)
