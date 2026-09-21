@@ -1,7 +1,4 @@
-from pokenux.services import user_data
 from pokenux.textual.utils import i18n
-
-i18n.set_language(user_data.get_app_lang())
 
 languages: list = [("Français", "fr"), ("English", "en")]
 
