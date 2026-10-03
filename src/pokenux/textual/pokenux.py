@@ -5,13 +5,17 @@ from textual.widgets import Footer, Header, TabPane, TabbedContent
 from pokenux.services import user_data
 from pokenux.textual.utils import bindings, i18n
 from pokenux.textual.screens.fetching_screen import FetchingScreen
-from pokenux.textual.views.new_view import NewView
 from pokenux.textual.views.parameters_view import ParametersView
 
 
 class Pokenux(App):
     BINDINGS = bindings.get_main_bindings()
-    CSS_PATH = ["css/style.css", "css/pokedex_view.css"]
+    CSS_PATH = [
+        "css/style.css",
+        "css/pokedex_view.css",
+        "css/tcg_view.css",
+        "css/quiz_view.css",
+    ]
 
     def on_mount(self):
         self.tabbed_content: TabbedContent = self.query_one("#tabbed_content")
@@ -38,6 +42,9 @@ class Pokenux(App):
         self.load_new_view()
 
     def load_new_view(self) -> None:
+        # These views import catalogues that must only load after asset setup.
+        from pokenux.textual.views.new_view import NewView
+
         self.query_one("#new_tab_tab", TabPane).mount(NewView(self.tabbed_content))
 
     def action_close_tab(self, tab_id: str) -> None:

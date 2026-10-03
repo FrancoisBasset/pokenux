@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 from pokenux.models.tcg.card import Card
 
@@ -22,7 +23,22 @@ class Set:
     serie_id: str
 
     @classmethod
-    def from_dict(cls, data: dict) -> Set:
-        data["legal"] = SetLegal(**data["legal"])
-        data["cards"] = [Card.from_dict(card) for card in data["cards"]]
-        return cls(**data)
+    def from_dict(cls, data: dict[str, Any]) -> Set:
+        legal = data.get("legal") or {}
+        return cls(
+            id=data["id"],
+            name=data["name"],
+            logo=data.get("logo") or "",
+            release_date=data.get("release_date") or data.get("releaseDate") or "",
+            symbol=data.get("symbol") or "",
+            abbreviation=data.get("abbreviation") or "",
+            legal=SetLegal(
+                standard=bool(legal.get("standard", False)),
+                expanded=bool(legal.get("expanded", False)),
+            ),
+            cards=[
+                Card.from_dict({"set_id": data["id"], **card})
+                for card in data.get("cards", [])
+            ],
+            serie_id=data.get("serie_id") or (data.get("serie") or {}).get("id", ""),
+        )

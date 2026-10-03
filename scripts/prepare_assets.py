@@ -1,8 +1,9 @@
+import argparse
 import json
 from pathlib import Path
+from typing import Any
 from urllib.request import urlretrieve
 
-from pokenux.services import pokedex
 from pokenux.services.api import tcgdex, tyradex
 
 
@@ -58,7 +59,7 @@ def prepare_pokemon_generations_json():
         f.write(json.dumps(generations))
 
 
-def get_pokemon_types_json() -> list:
+def get_pokemon_types_json() -> list[dict[str, str]]:
     types = []
 
     for pokemon_type in tyradex.fetch_all_types():
@@ -74,70 +75,99 @@ def prepare_pokemon_types_json():
         f.write(json.dumps(get_pokemon_types_json()))
 
 
-def prepare_tcg_json():
-    languages = ["fr"]
+def prepare_tcg_json(
+    languages: tuple[str, ...] = ("fr", "en"),
+    *,
+    include_card_details: bool = False,
+    output_dir: Path = Path("src/pokenux/assets/data"),
+):
+    """Build TCG catalogues, optionally fetching every card's search metadata.
 
+    Set responses only contain card summaries. A complete offline index needs
+    one extra API request per card, enabled explicitly with --tcg-card-details.
+    Existing metadata in summaries is retained without these extra requests.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
     for language in languages:
-        fetched_series = [
-            serie for serie in tcgdex.fetch_all_series(language) if "logo" in serie
-        ]
-
         series = []
 
-        for serie_resume in fetched_series:
+        for serie_resume in tcgdex.fetch_all_series(language):
             serie_details = tcgdex.fetch_serie_by_id(language, serie_resume["id"])
 
-            serie = {
+            serie: dict[str, Any] = {
                 "id": serie_details["id"],
                 "name": serie_details["name"],
-                "logo": serie_details["logo"],
-                "release_date": serie_details["releaseDate"],
+                "logo": serie_details.get("logo"),
+                "release_date": serie_details.get("releaseDate", ""),
                 "sets": [],
             }
 
-            for set_resume in serie_details["sets"]:
+            for set_resume in serie_details.get("sets", []):
                 set_details = tcgdex.fetch_set_by_id(language, set_resume["id"])
 
-                set = {
+                card_set: dict[str, Any] = {
                     "id": set_details["id"],
                     "name": set_details["name"],
                     "logo": None,
-                    "release_date": set_details["releaseDate"],
+                    "release_date": set_details.get("releaseDate", ""),
                     "abbreviation": None,
                     "symbol": None,
-                    "legal": set_details["legal"],
+                    "legal": {
+                        "standard": False,
+                        "expanded": False,
+                        **(set_details.get("legal") or {}),
+                    },
                     "cards": [],
                     "serie_id": serie["id"],
                 }
 
-                if "logo" in set_details:
-                    set["logo"] = set_details["logo"] + ".png"
-                if "symbol" in set_details:
-                    set["symbol"] = set_details["symbol"] + ".png"
-                if "abbreviation" in set_details:
-                    set["abbreviation"] = set_details["abbreviation"]["official"]
+                if set_details.get("logo"):
+                    card_set["logo"] = set_details["logo"] + ".png"
+                if set_details.get("symbol"):
+                    card_set["symbol"] = set_details["symbol"] + ".png"
+                abbreviation = set_details.get("abbreviation") or {}
+                card_set["abbreviation"] = abbreviation.get("official")
 
-                for card_resume in set_details["cards"]:
-                    set["cards"].append(
+                for card_resume in set_details.get("cards", []):
+                    card_details = dict(card_resume)
+                    if include_card_details:
+                        card_details.update(
+                            tcgdex.fetch_card_by_id(language, card_resume["id"])
+                        )
+                    card_set["cards"].append(
                         {
-                            "id": card_resume["id"],
-                            "name": card_resume["name"],
-                            "image": card_resume["image"]
-                            if "image" in card_resume
-                            else None,
-                            "set_id": set["id"],
+                            "id": card_details["id"],
+                            "name": card_details["name"],
+                            "image": card_details.get("image"),
+                            "set_id": card_set["id"],
+                            "hp": card_details.get("hp"),
+                            "types": card_details.get("types") or [],
+                            "illustrator": card_details.get("illustrator") or "",
+                            "rarity": card_details.get("rarity") or "",
+                            "category": card_details.get("category") or "",
+                            "local_id": card_details.get("local_id")
+                            or card_details.get("localId")
+                            or "",
+                            "details_loaded": include_card_details
+                            or bool(card_details.get("details_loaded"))
+                            or all(
+                                field in card_details
+                                for field in ("hp", "types", "illustrator")
+                            ),
                         }
                     )
 
-                serie["sets"].append(set)
+                serie["sets"].append(card_set)
 
             series.append(serie)
 
-        with open(f"src/pokenux/assets/data/tcg_{language}.json", "w") as f:
-            f.write(json.dumps(series))
+        with (output_dir / f"tcg_{language}.json").open("w", encoding="utf-8") as f:
+            json.dump(series, f, ensure_ascii=False)
 
 
 def prepare_pokemon_images():
+    from pokenux.services import pokedex
+
     if not Path("src/pokenux/assets/images/pokemon").exists():
         Path("src/pokenux/assets/images/pokemon").mkdir(parents=True, exist_ok=True)
 
@@ -151,9 +181,29 @@ def prepare_pokemon_images():
             )
 
 
-Path("src/pokenux/assets/data").mkdir(parents=True, exist_ok=True)
-prepare_pokemon_json()
-prepare_tcg_json()
-prepare_pokemon_images()
-prepare_pokemon_generations_json()
-prepare_pokemon_types_json()
+def main():
+    parser = argparse.ArgumentParser(description="Prepare Pokénux asset files.")
+    parser.add_argument(
+        "--tcg-only", action="store_true", help="Only prepare TCG catalogues."
+    )
+    parser.add_argument(
+        "--tcg-card-details",
+        action="store_true",
+        help=(
+            "Include HP, types and illustrator for offline search. Makes one "
+            "additional request per card (potentially tens of thousands)."
+        ),
+    )
+    args = parser.parse_args()
+    Path("src/pokenux/assets/data").mkdir(parents=True, exist_ok=True)
+    if not args.tcg_only:
+        prepare_pokemon_json()
+    prepare_tcg_json(include_card_details=args.tcg_card_details)
+    if not args.tcg_only:
+        prepare_pokemon_images()
+        prepare_pokemon_generations_json()
+        prepare_pokemon_types_json()
+
+
+if __name__ == "__main__":
+    main()

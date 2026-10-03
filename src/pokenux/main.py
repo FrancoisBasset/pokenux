@@ -1,14 +1,15 @@
+from importlib import import_module
+
 from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.models.tcg.card import Card
 from pokenux.models.tcg.serie import Serie
 from pokenux.models.tcg.set import Set
-from pokenux.services import pokedex
-from pokenux.services.games import anagram, evolution
-from pokenux.services import tcg_library
 from pokenux.textual.pokenux import Pokenux
 
 
 def show_all():
+    from pokenux.services import tcg_library
+
     for serie in tcg_library.series:
         print(f"Serie: {serie.name} {serie.id}")
         for set in serie.sets:
@@ -18,6 +19,8 @@ def show_all():
 
 
 def guess_anagram():
+    from pokenux.services.games import anagram
+
     [prompt, solution] = anagram.get_random_pokemon_anagram()
 
     try_count: int = 0
@@ -43,6 +46,8 @@ def guess_anagram():
 
 
 def test():
+    from pokenux.services import pokedex, tcg_library
+
     chochodile: Pokemon = pokedex.get_pokemon_by_name("Chochodile", "fr")
     print(chochodile.name.fr)
 
@@ -56,6 +61,8 @@ def test():
 
 
 def search_pokemon_card():
+    from pokenux.services import tcg_library
+
     chochodiles: list[Card] = tcg_library.get_cards_by_name("Chochodile")
     for chochodile in chochodiles:
         set: Set = tcg_library.get_set_by_id(chochodile.set_id)
@@ -66,6 +73,8 @@ def search_pokemon_card():
 
 
 def guess_evolution():
+    from pokenux.services.games import evolution
+
     [prompt, solution] = evolution.get_random_pokemon_evolution()
 
     guess: str = input(f"Évolution de {prompt.capitalize()} : ")
@@ -76,6 +85,8 @@ def guess_evolution():
 
 
 def guess_pre_evolution():
+    from pokenux.services.games import evolution
+
     [solution, prompt] = evolution.get_random_pokemon_evolution()
 
     guess: str = input(f"Pré-évolution de {prompt.capitalize()} : ")
@@ -86,6 +97,8 @@ def guess_pre_evolution():
 
 
 def complete_name():
+    from pokenux.services import pokedex
+
     pokemon_name: str = pokedex.get_random_pokemon().name.fr.lower()
 
     response: str = ""
@@ -101,6 +114,8 @@ def complete_name():
 
 
 def guess_all_pokemon_by_initial():
+    from pokenux.services import pokedex
+
     letter: str = input("Lettre : ")
 
     all_pokemon_to_guess = pokedex.get_all_pokemon_by_initial(letter)
@@ -125,6 +140,8 @@ def guess_all_pokemon_by_initial():
 
 
 def guess_pokemon_by_pokedex_id():
+    from pokenux.services import pokedex
+
     pokemon: Pokemon = pokedex.get_random_pokemon()
 
     response: str = input(f"Nom du Pokémon #{pokemon.pokedex_id} : ")
@@ -135,6 +152,8 @@ def guess_pokemon_by_pokedex_id():
 
 
 def guess_pokemon_id():
+    from pokenux.services import pokedex
+
     pokemon: Pokemon = pokedex.get_random_pokemon()
 
     response: str = input(f"ID du Pokémon {pokemon.name.fr} : ")
@@ -145,4 +164,7 @@ def guess_pokemon_id():
 
 
 def main():
+    # Probe graphics support before Textual starts reading terminal responses.
+    # This loads the image renderer without importing the asset-backed views.
+    import_module("textual_image.widget")
     Pokenux().run()

@@ -1,24 +1,55 @@
-PokedexView > Horizontal {
-    height: auto;
+PokedexView {
+    background: #060c14;
+    color: #e3eaf3;
+    padding: 0 1;
+}
+
+PokedexView #pokedex_toolbar {
+    height: 3;
+    margin-bottom: 1;
+    align: left middle;
 }
 
 PokedexView #pokemon_input {
     width: 1fr;
+    margin-right: 2;
 }
 
-PokedexView Select {
-    width: 25;
+PokedexView .toolbar-label {
+    color: #aab3be;
+    width: auto;
+    height: 1;
+    margin: 1 1 0 0;
 }
 
-PokedexView > #pokedex_content {
+PokedexView #pokemon_sort {
+    width: 22;
+    margin-right: 1;
+}
+
+PokedexView #pokemon_sort_direction {
+    width: 20;
+}
+
+PokedexView #pokedex_content {
     height: 1fr;
 }
 
 PokedexView #pokemon_filters {
-    width: 42;
-    max-width: 50%;
+    width: 35;
     height: 1fr;
-    padding: 0 1 0 0;
+    border: round #334154;
+    background: #09121c;
+    padding: 0 1;
+    margin-right: 1;
+    scrollbar-size: 1 1;
+}
+
+PokedexView #filters_title {
+    width: 1fr;
+    height: 2;
+    color: #5897ff;
+    text-style: bold;
 }
 
 PokedexView #pokemon_filters Grid {
@@ -30,10 +61,7 @@ PokedexView #generations_grid {
     grid-size: 3;
 }
 
-PokedexView #types_grid {
-    grid-size: 1;
-}
-
+PokedexView #types_grid,
 PokedexView #evolutions_grid {
     grid-size: 1;
 }
@@ -41,22 +69,258 @@ PokedexView #evolutions_grid {
 PokedexView .filters_container {
     height: auto;
     padding: 0 1;
-    margin: 0 0 1 0;
-    border: round $primary;
+    margin-bottom: 1;
+    border: round #263443;
+    background: #0d1722;
 }
 
 PokedexView .filters_container Label {
     width: 1fr;
-    margin-bottom: 1;
+    height: 1;
+    color: #5897ff;
     text-style: bold;
-    color: $accent;
 }
 
 PokedexView .filters_container Checkbox {
     width: 1fr;
-    height: auto;
+    height: 1;
     min-height: 1;
     margin: 0;
-    padding: 1 0;
+    padding: 0;
     border: none;
+    background: transparent;
+    color: #e3eaf3;
+}
+
+PokedexView .filters_container Checkbox > .toggle--label {
+    color: #e3eaf3;
+}
+
+PokedexView #pokemon_table_panel {
+    width: 1fr;
+    min-width: 64;
+    height: 1fr;
+    border: round #334154;
+    background: #09121c;
+    margin-right: 1;
+    padding: 0 1;
+}
+
+PokedexView #pokemon_list_header {
+    height: 3;
+    align: left middle;
+}
+
+PokedexView #pokemon_count {
+    width: auto;
+    height: 1;
+    margin-right: 1;
+    color: #5897ff;
+    text-style: bold;
+}
+
+PokedexView #pokemon_filter_chips {
+    width: 1fr;
+    height: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-size: 0 0;
+}
+
+PokedexView .filter {
+    width: auto;
+    height: 1;
+    padding: 0 1;
+    margin-right: 1;
+    text-style: bold;
+}
+
+PokedexView .filter-generation {
+    color: #80d69f;
+    background: #153527;
+}
+
+PokedexView .filter-type {
+    color: #ffb454;
+    background: #3a2915;
+}
+
+PokedexView .filter-evolution {
+    color: #d2a5fa;
+    background: #31223e;
+}
+
+PokedexView #pokemon_reset {
+    width: 18;
+    min-width: 18;
+    height: 1;
+    min-height: 1;
+    border: none;
+    background: transparent;
+    color: #5897ff;
+    padding: 0;
+}
+
+PokedexView #pokemon_reset:hover,
+PokedexView #pokemon_reset:focus {
+    background: #122747;
+}
+
+PokedexView PokemonTableHeader,
+PokedexView .pokemon-row {
+    min-width: 59;
+    padding: 0 1;
+    align: left middle;
+}
+
+PokedexView PokemonTableHeader {
+    height: 3;
+    border-bottom: solid #263443;
+    color: #5897ff;
+    text-style: bold;
+}
+
+PokedexView #pokemon_list {
+    height: 1fr;
+    overflow-x: auto;
+    scrollbar-size: 1 1;
+}
+
+PokedexView .pokemon-row {
+    height: 4;
+    border-bottom: solid #263443;
+}
+
+PokedexView .pokemon-row:hover {
+    background: #0e1d31;
+}
+
+PokedexView .pokemon-row.selected {
+    background: #122747;
+    border-left: thick #5897ff;
+    padding-left: 0;
+}
+
+PokedexView .pokemon-row.selected .pokemon-number,
+PokedexView .pokemon-row.selected .pokemon-name {
+    color: #5897ff;
+    text-style: bold;
+}
+
+PokedexView PokemonTableHeader Label,
+PokedexView .pokemon-row Label {
+    height: 1;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+PokedexView .pokemon-number {
+    width: 7;
+    color: #e3eaf3;
+}
+
+PokedexView .pokemon-thumbnail {
+    width: 6;
+    height: 3;
+    margin-right: 1;
+}
+
+PokedexView .pokemon-name {
+    width: 1fr;
+    min-width: 12;
+    color: #e3eaf3;
+}
+
+PokedexView .pokemon-types {
+    width: 14;
+    padding-right: 1;
+    color: #ffb454;
+}
+
+PokedexView .pokemon-generation {
+    width: 5;
+    padding-right: 1;
+    color: #80d69f;
+}
+
+PokedexView .pokemon-stage {
+    width: 12;
+    color: #d2a5fa;
+}
+
+PokedexView PokemonTableHeader .pokemon-number,
+PokedexView PokemonTableHeader .pokemon-name,
+PokedexView PokemonTableHeader .pokemon-types,
+PokedexView PokemonTableHeader .pokemon-generation,
+PokedexView PokemonTableHeader .pokemon-stage {
+    color: #5897ff;
+}
+
+PokedexView #pokemon_empty {
+    width: 1fr;
+    height: auto;
+    padding: 2 1;
+    color: $text-muted;
+}
+
+PokedexView #pokemon_details {
+    width: 42%;
+    min-width: 38;
+    height: 1fr;
+}
+
+PokedexView.compact #pokemon_filters {
+    display: none;
+}
+
+PokedexView.compact.filters-expanded #pokemon_filters {
+    display: block;
+}
+
+PokedexView.compact.filters-expanded #pokemon_details {
+    display: none;
+}
+
+PokedexView.narrow #pokemon_details {
+    display: none;
+}
+
+PokedexView.narrow.details-open #pokemon_table_panel {
+    display: none;
+}
+
+PokedexView.narrow.details-open #pokemon_details {
+    display: block;
+    width: 1fr;
+}
+
+PokedexView.narrow #pokedex_toolbar {
+    height: 6;
+    layout: grid;
+    grid-size: 3 2;
+    grid-columns: auto 1fr 1fr;
+    grid-rows: 3 3;
+}
+
+PokedexView.narrow #pokemon_input {
+    column-span: 3;
+    margin-right: 0;
+}
+
+PokedexView.narrow #pokemon_sort,
+PokedexView.narrow #pokemon_sort_direction {
+    width: 1fr;
+}
+
+PokedexView.narrow.filters-expanded #pokemon_table_panel {
+    display: none;
+}
+
+PokedexView.narrow.filters-expanded #pokemon_filters {
+    width: 1fr;
+}
+
+PokedexView.narrow #pokemon_table_panel {
+    min-width: 0;
+    margin-right: 0;
 }

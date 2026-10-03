@@ -1,0 +1,147 @@
+TcgView {
+    background: #060c14;
+    color: #e3eaf3;
+    padding: 0 1;
+}
+TcgView #tcg_heading { height: 2; align: left middle; }
+TcgView #tcg_title { color: #e7bd70; text-style: bold; width: 1fr; }
+TcgView #tcg_catalogue_count { width: auto; color: #8795a8; }
+TcgView #tcg_toolbar { height: 3; }
+TcgView #tcg_browse { min-width: 10; width: 10; margin-right: 1; }
+TcgView #tcg_name { width: 1fr; }
+TcgView #tcg_reset { width: 14; min-width: 14; margin-left: 1; }
+TcgView #tcg_toggle_filters { width: 11; min-width: 11; margin-left: 1; }
+TcgView Input, TcgView SelectCurrent {
+    background: #0d1722;
+    border: tall #334154;
+}
+TcgView Input:focus, TcgView Select:focus > SelectCurrent { border: tall #5897ff; }
+TcgView Input.-invalid { border: tall #f1847c; }
+TcgView Button {
+    background: #122238;
+    color: #a9cdff;
+    border: tall transparent;
+    padding: 0 1;
+}
+TcgView Button:hover, TcgView Button:focus { background: #1b3657; color: #e3eaf3; }
+TcgView #tcg_filters { height: 5; padding-top: 1; }
+TcgView .tcg-field { height: 4; width: 1fr; margin-right: 1; }
+TcgView .tcg-field-label { height: 1; color: #aab3be; }
+TcgView #tcg_hp_field { width: 21; }
+TcgView #tcg_type_field { width: 24; }
+TcgView #tcg_sort_field { width: 25; margin-right: 0; }
+TcgView #tcg_content { height: 1fr; margin-top: 1; }
+TcgView #tcg_catalogue_panel {
+    width: 31;
+    height: 1fr;
+    border: round #334154;
+    background: #09121c;
+    margin-right: 1;
+}
+TcgView .tcg-panel-title { color: #e7bd70; text-style: bold; padding: 1; height: 3; }
+TcgView #tcg_catalogue {
+    background: transparent;
+    height: 1fr;
+    padding: 0 1;
+    scrollbar-size: 1 1;
+}
+TcgView #tcg_catalogue > .tree--guides { color: #334154; }
+TcgView #tcg_catalogue > .tree--cursor {
+    background: #122747;
+    color: #e7bd70;
+    text-style: bold;
+}
+TcgView #tcg_tree_hint { height: auto; color: #8795a8; padding: 1; }
+TcgView #tcg_results_panel {
+    height: 1fr;
+    width: 1fr;
+    border: round #334154;
+    background: #09121c;
+    margin-right: 1;
+    padding: 0 1;
+}
+TcgView #tcg_scope {
+    color: #e3eaf3;
+    text-style: bold;
+    height: auto;
+    max-height: 2;
+    margin-top: 1;
+}
+TcgView #tcg_scope_info {
+    color: #8795a8;
+    height: 1;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+TcgView #tcg_result_heading { height: 3; align: left middle; }
+TcgView #tcg_count { color: #e7bd70; text-style: bold; width: 1fr; }
+TcgView #tcg_open_card {
+    width: 19;
+    min-width: 19;
+    height: 1;
+    min-height: 1;
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+TcgView #tcg_cards { height: 1fr; background: #09121c; scrollbar-size: 1 1; }
+TcgView #tcg_cards > .datatable--header {
+    color: #9dbfe9;
+    background: #122033;
+    text-style: bold;
+}
+TcgView #tcg_cards > .datatable--odd-row { background: #0d1722; }
+TcgView #tcg_cards > .datatable--even-row { background: #09121c; }
+TcgView #tcg_cards > .datatable--cursor {
+    color: #e7bd70;
+    background: #203048;
+    text-style: bold;
+}
+TcgView #tcg_empty {
+    width: 1fr;
+    height: 1fr;
+    padding: 2;
+    content-align: center middle;
+    color: #8795a8;
+}
+TcgView #tcg_pagination { height: 3; margin-top: 1; align: center middle; }
+TcgView #tcg_pagination Button { width: 15; min-width: 15; }
+TcgView #tcg_page { width: 1fr; content-align: center middle; }
+TcgView TcgCardDetails { width: 40; height: 1fr; }
+TcgView #tcg_status_bar { height: auto; min-height: 2; max-height: 4; padding-top: 1; }
+TcgView #tcg_status { width: 1fr; height: auto; color: #8795a8; }
+TcgView #tcg_status.tcg-error { color: #f1847c; }
+TcgView #tcg_retry { height: 1; min-height: 1; border: none; padding: 0 1; }
+TcgView.compact TcgCardDetails { display: none; }
+TcgView.compact #tcg_results_panel { margin-right: 0; }
+TcgView.compact.details-open #tcg_results_panel { display: none; }
+TcgView.compact.details-open TcgCardDetails { display: block; width: 1fr; }
+TcgView.narrow #tcg_filters {
+    height: 9;
+    layout: grid;
+    grid-size: 2 2;
+    grid-columns: 1fr 1fr;
+    grid-rows: 4 4;
+}
+TcgView.narrow .tcg-field,
+TcgView.narrow #tcg_hp_field,
+TcgView.narrow #tcg_type_field,
+TcgView.narrow #tcg_sort_field { width: 1fr; }
+TcgView.narrow #tcg_catalogue_panel { display: none; }
+TcgView.narrow.catalogue-open #tcg_catalogue_panel { display: block; width: 1fr; margin-right: 0; }
+TcgView.narrow.catalogue-open #tcg_results_panel { display: none; }
+TcgView.small #tcg_catalogue_count { display: none; }
+TcgView.small #tcg_reset { width: 6; min-width: 6; text-overflow: ellipsis; }
+TcgView.short #tcg_heading,
+TcgView.short #tcg_filters,
+TcgView.short #tcg_scope_info,
+TcgView.short #tcg_tree_hint { display: none; }
+TcgView.short #tcg_content { margin-top: 0; }
+TcgView.short #tcg_scope { margin-top: 0; height: 1; }
+TcgView.short #tcg_result_heading { height: 1; }
+TcgView.short #tcg_pagination { margin-top: 0; height: 1; }
+TcgView.short #tcg_pagination Button { height: 1; min-height: 1; border: none; }
+TcgView.short #tcg_status_bar { min-height: 1; max-height: 2; padding-top: 0; }
+TcgView.short .tcg-panel-title { height: 1; padding: 0 1; }
+TcgView.short.filters-open #tcg_filters { display: block; }
+TcgView.short.filters-open #tcg_content { display: none; }

@@ -44,3 +44,25 @@ class Pokemon:
             data["sex"] = PokemonSex(**data["sex"])
 
         return cls(**data)
+
+    @property
+    def stage_code(self) -> str:
+        if not self.evolution.pre and self.evolution.next:
+            return "base"
+        if len(self.evolution.pre or []) == 1:
+            return "stage_1"
+        if len(self.evolution.pre or []) == 2:
+            return "stage_2"
+        if not self.evolution.pre and not self.evolution.next:
+            return "no_evolution"
+
+        return ""
+
+    @property
+    def stage(self) -> str:
+        return {
+            "base": "Base",
+            "stage_1": "Niveau 1",
+            "stage_2": "Niveau 2",
+            "no_evolution": "Sans évolution",
+        }.get(self.stage_code, "")

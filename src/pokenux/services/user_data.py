@@ -31,7 +31,12 @@ def init():
 
 
 def assets_are_missing() -> bool:
-    return not assets_path.exists() or not any(assets_path.iterdir())
+    data_path = assets_path / "data"
+    required_files = ("pokemon.json", "generations.json", "types.json")
+    if not all((data_path / filename).is_file() for filename in required_files):
+        return True
+    # The published archive may only contain FR; TCG supports language fallback.
+    return not any(file.is_file() for file in data_path.glob("tcg_*.json"))
 
 
 def download_assets(cancelled: Callable[[], bool]) -> bool:
