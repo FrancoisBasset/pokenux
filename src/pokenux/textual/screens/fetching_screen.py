@@ -46,6 +46,7 @@ class FetchingScreen(Screen[bool]):
         super().__init__()
         self.fetch_worker: Worker[None] | None = None
         self._leaving = False
+        self._failed = False
 
     def compose(self) -> ComposeResult:
         with Vertical(id="fetch_card"):
@@ -77,12 +78,15 @@ class FetchingScreen(Screen[bool]):
     def start_fetch(self) -> None:
         if self.fetch_worker and self.fetch_worker.is_running:
             return
+        self._failed = False
         self.query_one("#fetch_retry", Button).display = False
         self.query_one("#fetch_error", Label).update("")
         self.query_one("#fetch_detail", Label).update(
             text("Recherche du catalogue…", "Checking for a catalogue…")
         )
-        self.query_one("#fetch_progress", ProgressBar).update(total=None, progress=0)
+        progress = self.query_one("#fetch_progress", ProgressBar)
+        progress.display = True
+        progress.update(total=None, progress=0)
         self.fetch_worker = self.fetch()
 
     @work(thread=True, exclusive=True, exit_on_error=False)
@@ -106,7 +110,7 @@ class FetchingScreen(Screen[bool]):
     @on(Progress)
     def update_progress(self, message: Progress) -> None:
         message.stop()
-        if self._leaving:
+        if self._leaving or self._failed:
             return
         stages = {
             "checking": ("Recherche du catalogue…", "Checking for a catalogue…"),
@@ -142,14 +146,18 @@ class FetchingScreen(Screen[bool]):
                 )
             self.dismiss(True)
         else:
+            self._failed = True
+            self.query_one("#fetch_detail", Label).update(
+                text("Échec de l’installation", "Installation failed")
+            )
             self.query_one("#fetch_error", Label).update(
                 text(
-                    "Le catalogue n’a pas pu être installé. Vérifie ta connexion et réessaie.\n{error}",
-                    "The catalogue could not be installed. Check your connection and try again.\n{error}",
+                    "Le catalogue n’a pas pu être installé. Tu peux réessayer ou quitter.\n{error}",
+                    "The catalogue could not be installed. You can retry or quit.\n{error}",
                     error=message.error,
                 )
             )
-            self.query_one("#fetch_progress", ProgressBar).update(total=1, progress=0)
+            self.query_one("#fetch_progress", ProgressBar).display = False
             self.query_one("#fetch_retry", Button).display = True
             self.query_one("#fetch_retry", Button).focus()
 

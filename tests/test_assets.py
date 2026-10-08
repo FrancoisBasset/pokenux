@@ -1,6 +1,7 @@
 """Offline regression tests for catalogue publication and transactional installs."""
 
 import copy
+from contextlib import nullcontext
 from dataclasses import replace
 import hashlib
 import importlib.util
@@ -268,14 +269,32 @@ class AssetTests(unittest.TestCase):
         self.network[MANIFEST_URL] = HTTPError(
             MANIFEST_URL, 404, "unpublished", Message(), None
         )
-        stream = io.BytesIO()
-        with ZipFile(stream, "w") as archive:
-            for relative in REQUIRED_FILES[:-1]:
-                archive.write(self.source / relative, "assets/" + relative)
-        self.network[LEGACY_URL] = stream.getvalue()
-        self.assertTrue(self.manager.bootstrap())
-        self.assertTrue(self.manager.status().legacy)
-        self.assertEqual(self.manager.status().languages, ("fr",))
+        for prefix in ("", "assets/"):
+            for directory_entries in (False, True):
+                with self.subTest(prefix=prefix, directory_entries=directory_entries):
+                    stream = io.BytesIO()
+                    with ZipFile(stream, "w") as archive:
+                        if directory_entries:
+                            if prefix:
+                                archive.mkdir(prefix)
+                            archive.mkdir(prefix + "data/")
+                        for relative in REQUIRED_FILES[:-1]:
+                            archive.write(self.source / relative, prefix + relative)
+                    self.network[LEGACY_URL] = stream.getvalue()
+                    manager = AssetManager(
+                        self.root / f"user-{bool(prefix)}-{directory_entries}",
+                        opener=self.manager._opener,
+                    )
+                    self.assertTrue(manager.bootstrap())
+                    self.assertTrue(manager.status().legacy)
+                    self.assertEqual(manager.status().languages, ("fr",))
+                    self.assertEqual(
+                        (manager.active_path / "data/pokemon.json").read_bytes(),
+                        (self.source / "data/pokemon.json").read_bytes(),
+                    )
+                    self.assertEqual(
+                        list(manager.data_root.glob(".assets-staging-*")), []
+                    )
         self.network[MANIFEST_URL] = HTTPError(
             MANIFEST_URL, 503, "unavailable", Message(), None
         )
@@ -284,6 +303,67 @@ class AssetTests(unittest.TestCase):
         with self.assertRaises(AssetError):
             empty.bootstrap()
         self.assertNotIn(LEGACY_URL, self.calls)
+
+    def test_unwrapped_legacy_catalogue_can_upgrade_and_roll_back(self):
+        self.network[MANIFEST_URL] = HTTPError(
+            MANIFEST_URL, 404, "unpublished", Message(), None
+        )
+        self.network[LEGACY_URL] = self.network[self.manifest.archive.url]
+        self.manager.data_root.mkdir()
+        config = self.manager.data_root / "config.toml"
+        config.write_text('app_lang = "fr"\n')
+        self.assertTrue(self.manager.bootstrap())
+        self.assertTrue(self.manager.status().legacy)
+        self.assertEqual(self.manager.status().languages, ("fr", "en"))
+        self.assertTrue(self.manager.install(self.manifest))
+        self.assertEqual(self.manager.status().version, "1.0.0")
+        self.assertTrue(self.manager.rollback())
+        self.assertTrue(self.manager.status().legacy)
+        self.assertEqual(validate_catalogues(self.manager.active_path), ("fr", "en"))
+        self.assertEqual(config.read_text(), 'app_lang = "fr"\n')
+
+    def test_legacy_layout_validation_still_rejects_unsafe_archives(self):
+        self.network[MANIFEST_URL] = HTTPError(
+            MANIFEST_URL, 404, "unpublished", Message(), None
+        )
+        for prefix in ("", "assets/"):
+            for name, symlink in (
+                (prefix + "../escape", False),
+                (prefix + "data/../../escape", False),
+                (prefix + "data\\escape", False),
+                (prefix + "data/link", True),
+                (prefix + "data/pokemon.json", False),
+                (prefix + "../config.toml", False),
+                (
+                    "assets/data/unexpected.json"
+                    if not prefix
+                    else "data/unexpected.json",
+                    False,
+                ),
+            ):
+                with self.subTest(prefix=prefix, name=name, symlink=symlink):
+                    stream = io.BytesIO()
+                    with ZipFile(stream, "w") as archive:
+                        for relative in REQUIRED_FILES:
+                            archive.write(self.source / relative, prefix + relative)
+                        item = ZipInfo(name)
+                        item.external_attr = (0o120777 if symlink else 0o100644) << 16
+                        warning = (
+                            self.assertWarns(UserWarning)
+                            if name == prefix + "data/pokemon.json"
+                            else nullcontext()
+                        )
+                        with warning:
+                            archive.writestr(item, "bad")
+                    self.network[LEGACY_URL] = stream.getvalue()
+                    with self.assertRaises(AssetError):
+                        self.manager.bootstrap()
+                    self.assertFalse(self.manager.active_path.exists())
+                    self.assertEqual(
+                        list(self.manager.data_root.glob(".assets-staging-*")), []
+                    )
+                    self.assertFalse((self.manager.data_root / "escape").exists())
+                    self.assertFalse((self.manager.data_root / "config.toml").exists())
 
     def test_invalid_model_and_missing_english_rejected(self):
         item = pokemon()

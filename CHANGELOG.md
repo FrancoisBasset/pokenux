@@ -38,6 +38,10 @@ dates use `YYYY-MM-DD`. Items marked **Unreleased** are not yet a published rele
 
 ### Fixed
 
+- First-launch installation accepts legacy archives with either `data/` or
+  `assets/data/` layouts, including the archive currently published on GitHub.
+- Setup failures show an explicit error state instead of a stalled download or
+  a misleading connection warning.
 - TCG requests keep their original language when preferences change, and
   metadata caches are separated by catalogue version.
 - Deferred focus updates no longer pull players away from Settings.

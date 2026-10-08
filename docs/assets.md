@@ -26,6 +26,9 @@ archive. Settings labels such data **legacy** and shows the languages actually
 present. Existing legacy installations remain usable. A 404 for the unpublished
 channel permits this fallback; a timeout, invalid manifest or failed checksum
 never silently downgrades a versioned download to an unchecked legacy archive.
+The legacy installer accepts either `data/` at the ZIP root or an `assets/`
+wrapper, including directory entries. Mixed layouts, unsafe paths, links and
+duplicate files are rejected before activation; all catalogues are validated.
 
 ## Bundle format
 

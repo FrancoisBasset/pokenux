@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from textual.app import App
-from textual.widgets import Button, Label
+from textual.widgets import Button, Label, ProgressBar
 
 from pokenux.services import localization
 from pokenux.services.assets import AssetError, AssetProgress, AssetStatus
@@ -49,13 +49,57 @@ class FirstRunTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIsInstance(screen, FetchingScreen)
                 self.assertTrue(screen.query_one("#fetch_retry", Button).display)
                 self.assertIn(
-                    "réessaie", str(screen.query_one("#fetch_error", Label).content)
+                    "réessayer", str(screen.query_one("#fetch_error", Label).content)
                 )
                 self.assertIsNone(app.result)
                 await pilot.click("#fetch_retry")
                 await pilot.pause()
                 self.assertIs(app.result, True)
                 self.assertEqual(len(calls), 2)
+
+    async def test_invalid_archive_shows_neutral_failure_in_both_languages(self):
+        self.addCleanup(localization.set_language, localization.language())
+        detail = "Unexpected legacy asset archive layout"
+
+        def download(*, cancelled, progress):
+            progress(AssetProgress("downloading", 0, 10))
+            raise AssetError(detail)
+
+        for language, status, connection_word in (
+            ("fr", "Échec de l’installation", "connexion"),
+            ("en", "Installation failed", "connection"),
+        ):
+            with (
+                self.subTest(language=language),
+                patch(
+                    "pokenux.services.user_data.download_assets", side_effect=download
+                ),
+            ):
+                localization.set_language(language)
+                app = SetupApp()
+                async with app.run_test(size=(80, 26)) as pilot:
+                    await pilot.pause()
+                    screen = app.screen
+                    self.assertIsInstance(screen, FetchingScreen)
+                    error = str(screen.query_one("#fetch_error", Label).content)
+                    self.assertIn(detail, error)
+                    self.assertNotIn(connection_word, error.lower())
+                    self.assertEqual(
+                        str(screen.query_one("#fetch_detail", Label).content), status
+                    )
+                    self.assertFalse(
+                        screen.query_one("#fetch_progress", ProgressBar).display
+                    )
+                    self.assertTrue(screen.query_one("#fetch_retry", Button).display)
+                    self.assertTrue(screen.query_one("#fetch_cancel", Button).display)
+                    # A delayed progress notification must not replace the error state.
+                    screen.update_progress(
+                        FetchingScreen.Progress(AssetProgress("downloading", 1, 10))
+                    )
+                    self.assertEqual(
+                        str(screen.query_one("#fetch_detail", Label).content), status
+                    )
+                    self.assertIsNone(app.result)
 
     async def test_quit_during_failed_setup_is_available(self):
         with patch(

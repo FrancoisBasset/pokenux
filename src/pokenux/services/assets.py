@@ -392,6 +392,20 @@ class AssetManager:
                 or sum(item.file_size for item in members) > MAX_EXPANDED_BYTES
             ):
                 raise AssetError("Asset archive exceeds extraction limits.")
+            # The legacy URL has served both data/ and assets/data/ bundles.
+            # Select one layout for the entire archive so mixed roots cannot
+            # overwrite the same destination after removing the wrapper.
+            legacy_prefix = ""
+            if manifest is None:
+                if all(item.filename.startswith("assets/") for item in members):
+                    legacy_prefix = "assets/"
+                elif not all(item.filename.startswith("data/") for item in members):
+                    raise AssetError(
+                        text(
+                            "L’archive historique doit contenir un dossier data/ ou assets/.",
+                            "The legacy archive must contain a data/ or assets/ directory.",
+                        )
+                    )
             seen = set()
             for index, item in enumerate(members):
                 self._checkpoint(cancelled)
@@ -407,14 +421,11 @@ class AssetManager:
                 if raw in seen:
                     raise AssetError("Duplicate file in asset archive.")
                 seen.add(raw)
-                # Legacy ZIPs use a top-level assets directory; new ZIPs do not.
                 name = raw
-                if manifest is None:
+                if manifest is None and legacy_prefix:
                     if raw == "assets" and item.is_dir():
                         continue
-                    if not raw.startswith("assets/"):
-                        raise AssetError("Unexpected legacy asset archive layout.")
-                    name = raw.removeprefix("assets/")
+                    name = raw.removeprefix(legacy_prefix)
                 if item.is_dir():
                     continue
                 if manifest and (
