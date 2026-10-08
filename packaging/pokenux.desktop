@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Pokénux
+GenericName=Pokémon terminal companion
+Comment=Explore Pokémon, play quizzes and collect virtual cards
+Comment[fr]=Explorez les Pokémon, jouez aux quiz et collectionnez des cartes virtuelles
+Exec=pokenux
+TryExec=pokenux
+Icon=pokenux
+Terminal=true
+Categories=Game;
+Keywords=Pokemon;Pokémon;Pokedex;Quiz;TCG;Terminal;
+StartupNotify=false

@@ -1,0 +1,26 @@
+Pokénux is licensed under the MIT license; see LICENSE.
+
+The portable Linux distribution includes a private CPython interpreter and
+third-party Python packages. Those components keep their original licenses.
+
+Python runtime
+--------------
+CPython 3.14.6, python-build-standalone build 20260610, obtained through uv 0.11.23.
+Runtime source and build recipes:
+https://github.com/astral-sh/python-build-standalone/tree/f1d7b92301235781d4de2493578773aaa413c0a5
+CPython source: https://www.python.org/downloads/release/python-3146/
+
+Upstream runtime license notices are included in licenses/python-build-standalone.
+CPython's own license is also retained in runtime/lib/python3.14/LICENSE.txt.
+The upstream notice set includes optional components not present in every build.
+
+Python packages
+---------------
+DEPENDENCIES.json identifies the installed distributions and versions.
+requirements.lock.txt records the pinned runtime dependency versions and hashes.
+Their METADATA, license files and notices remain in the corresponding *.dist-info
+directories under runtime/lib/python3.14/site-packages, and in package directories
+where the upstream wheel distributes them there.
+
+Pokémon names, illustrations, card artwork and other third-party data are not
+covered by the Pokénux MIT license. The package does not bundle that artwork.

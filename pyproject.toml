@@ -1,27 +1,72 @@
 [project]
 name = "pokenux"
-version = "1.0"
+version = "1.1.0"
 description = "Pokénux is a modern Textual TUI to explore Pokémon and cards, play quizzes, and open boosters from your terminal."
 authors = [
     { name = "FrancoisBasset", email = "mrfrancoisbasset@gmail.com" },
 ]
 license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = [
-    "requests>=2.34.2,<3.0.0",
-    "tcgdex-sdk>=2.3.0",
-    "textual>=8.2.8",
-    "textual-image>=0.13.2",
-    "tomlkit>=0.15.1",
+keywords = ["pokemon", "pokedex", "tcg", "terminal", "textual", "quiz"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment",
 ]
+dependencies = [
+    "pillow>=12.3.0,<13.0.0",
+    "requests>=2.34.2,<3.0.0",
+    "rich>=15.0.0,<16.0.0",
+    "textual>=8.2.8,<9.0.0",
+    "textual-image>=0.13.2,<0.14.0",
+    "tomlkit>=0.15.1,<0.16.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/FrancoisBasset/pokenux"
+Repository = "https://github.com/FrancoisBasset/pokenux"
+Issues = "https://github.com/FrancoisBasset/pokenux/issues"
+Changelog = "https://github.com/FrancoisBasset/pokenux/blob/master/CHANGELOG.md"
 
 [project.scripts]
 pokenux = "pokenux.main:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pokenux"]
+
+[tool.hatch.build]
+exclude = [
+    "/src/pokenux/assets",
+    "**/__pycache__",
+    "**/*.pyc",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src", "/scripts", "/packaging", "/tests", "/docs", "/.github",
+    "/pyproject.toml", "/uv.lock", "/.python-version", "/PKGBUILD",
+    "/README.md", "/CHANGELOG.md", "/LICENSE", "/CONTRIBUTING.md",
+    "/CODE_OF_CONDUCT.md", "/SECURITY.md", "/SUPPORT.md", "/Makefile",
+]
+
+[tool.ruff]
+target-version = "py314"
+extend-exclude = ["build", "dist", ".venv"]
+
+[tool.ruff.per-file-target-version]
+"scripts/build_linux.py" = "py311"
+"scripts/release.py" = "py311"
+"scripts/check_dist.py" = "py311"
 
 [dependency-groups]
 dev = [

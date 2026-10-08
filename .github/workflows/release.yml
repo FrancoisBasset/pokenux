@@ -1,0 +1,74 @@
+name: Draft release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          version: '0.11.23'
+      - name: Require matching version and dated release notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: uv run --frozen --no-dev python scripts/release.py check --tag "$RELEASE_TAG"
+
+  build:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+
+  draft:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          version: '0.11.23'
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          path: dist/release
+          merge-multiple: true
+      - name: Write release notes and SHA-256 manifest
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          uv run --frozen --no-dev python scripts/release.py notes --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/release-notes.md"
+          uv run --frozen --no-dev python scripts/release.py checksums dist/release
+          uv run --frozen --no-dev python scripts/release.py verify dist/release
+      - name: Create or update an unpublished draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json isDraft > "$RUNNER_TEMP/release-state.json"; then
+            test "$(jq -r .isDraft "$RUNNER_TEMP/release-state.json")" = true || {
+              echo 'Refusing to replace assets of a published release.' >&2
+              exit 1
+            }
+            gh release edit "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft \
+              --title "Pokénux $RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+          gh release upload "$RELEASE_TAG" dist/release/* --clobber

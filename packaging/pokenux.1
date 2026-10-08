@@ -1,0 +1,38 @@
+.TH POKENUX 1 "2026-10-08" "Pokénux" "User Commands"
+.SH NAME
+pokenux \- explore Pokémon, play quizzes and collect virtual cards
+.SH SYNOPSIS
+.B pokenux
+.RI [ --help | --version | --check ]
+.SH DESCRIPTION
+Pokénux is a keyboard and mouse driven terminal application with a Pokédex,
+quizzes and a virtual trading card collection. An Internet connection is needed
+to fetch Pokémon and card data. The collection uses virtual currency only.
+.SH OPTIONS
+.TP
+.B --help
+Show command line usage.
+.TP
+.B --version
+Print the installed version.
+.TP
+.B --check
+Check the installation and packaged resources without opening the interface
+or making network requests.
+.SH FILES
+.TP
+.I ~/.local/share/pokenux/
+User settings, downloaded data, caches and the virtual collection database.
+An absolute XDG_DATA_HOME overrides the parent data directory.
+.PP
+Package upgrades and removal do not delete these files.
+.SH NOTES
+The standalone Linux packages include a private Python runtime in
+.IR /opt/pokenux .
+They do not require or modify the system Python installation.
+Pokénux is an independent fan project, unaffiliated with Pokémon's rights holders.
+.SH BUGS
+Report reproducible issues at
+.UR https://github.com/FrancoisBasset/pokenux/issues
+the project issue tracker
+.UE .

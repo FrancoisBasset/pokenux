@@ -1,5 +1,15 @@
-uv.lock
-__pycache__
-dist
-pkg
-*.zst
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+pkg/
+*.egg-info/
+*.pkg.tar.*
+*.deb
+# Downloaded game catalogues and artwork are not source distributions.
+src/pokenux/assets/
