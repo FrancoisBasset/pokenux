@@ -1,2 +1,4 @@
 # Preserve the upstream license notices byte for byte.
 packaging/licenses/** -whitespace linguist-vendored
+# Textual exports contain generated SVG formatting.
+docs/images/*.svg -whitespace linguist-generated

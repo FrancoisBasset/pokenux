@@ -19,9 +19,9 @@ focused implementation in an issue before taking on a substantial change.
 
 ## Welcome more players and contributors
 
-- Complete French/English interface coverage and document the translation loop.
+- Review French/English wording and improve translated upstream metadata coverage.
 - Refine narrow-terminal layouts, keyboard focus, and accessible colour choices.
-- Improve first-run recovery, catalogue updates, and offline status messages.
+- Exercise catalogue updates and first-run recovery on more network conditions.
 - Expand meaningful tests around save migrations, catalogue failures, and UI navigation.
 
 Current functionality is described in [the playing guide](usage.md); planned

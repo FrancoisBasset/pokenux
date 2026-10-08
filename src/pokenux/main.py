@@ -9,7 +9,7 @@ import platform
 from typing import cast
 
 from pokenux import __version__
-from pokenux.paths import assets_are_missing, data_directory
+from pokenux.paths import data_directory
 
 
 _DEPENDENCIES = (
@@ -77,17 +77,24 @@ def check_installation() -> int:
     location = data_directory()
     print(f"Data {location}")
     try:
-        missing = assets_are_missing(location / "assets")
+        from pokenux.services.assets import AssetManager
+
+        status = AssetManager(location).status()
     except OSError as error:
         # Catalogue availability does not determine whether installation works.
         print(f"INFO Local catalogue cannot be inspected: {error}")
     else:
-        if missing:
+        if not status.installed:
             print(
                 "INFO Local catalogue absent; first launch downloads it (network required)."
             )
         else:
-            print("OK   Local catalogue present")
+            print(
+                f"OK   Local catalogue {status.version or 'legacy'} · "
+                + " / ".join(language.upper() for language in status.languages)
+            )
+            if status.legacy:
+                print("INFO Check Settings for versioned FR/EN catalogue updates.")
     for error in errors:
         print(f"FAIL {error}")
     print("Installation check failed." if errors else "Installation ready.")

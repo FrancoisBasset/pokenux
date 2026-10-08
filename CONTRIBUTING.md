@@ -54,8 +54,14 @@ or build output. Changes to dependencies should update `uv.lock` with `uv lock`.
 | `docs/` | User and maintainer documentation |
 
 Translation work should preserve placeholders and keyboard hints. For new UI
-text, follow the surrounding translation conventions; do not assume every
-screen is already translated.
+text, use `pokenux.services.localization.text(french, english, **values)`
+(also exposed as `i18n.text` in views). Keep the same named placeholders in both
+strings. Translate interface text with the app language; Pokémon and TCG data
+follow their independent preferences. Avoid evaluating translations in module
+constants: construct them when rendering so a language change takes effect.
+Views expose `refresh_language()` to update mounted controls while preserving
+selection and game state. Existing gettext keys remain supported by `i18n.trans`.
+Test both languages and the case where the interface and catalogue languages differ.
 
 See [the release guide](docs/releases.md) for building Linux packages and
 [data and attribution](docs/data-and-attribution.md) before modifying catalogue

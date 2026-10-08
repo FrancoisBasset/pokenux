@@ -128,9 +128,12 @@ Review the draft notes, expected architecture files and successful container
 checks, then publish the draft in GitHub. Do not move an existing published tag
 or replace its artifacts; ship a new version for corrections.
 
-The catalogue downloader currently uses the separate historical `1.0.0`
-release's `pokenux-data.zip`. Keep that asset available. Application version
-tags use the `v` prefix and do not replace the catalogue release.
+Catalogues have an independent content version and `assets-vVERSION` release
+tags. The application checks the `assets-v1` channel manifest for schema 1.
+Until that channel is published, first-run setup can use the historical
+`1.0.0` release's `pokenux-data.zip`; keep that asset available during migration.
+Application tags use the `v` prefix. See [asset releases](assets.md) for building
+bilingual catalogues and promoting a reviewed manifest to the update channel.
 
 ## Manual assembly and maintenance
 

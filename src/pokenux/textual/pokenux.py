@@ -1,7 +1,7 @@
 from textual.app import App, ComposeResult
 from textual.css.query import NoMatches
 from textual.widget import Widget
-from textual.widgets import Footer, Header, TabPane, TabbedContent
+from textual.widgets import Footer, Header, Select, TabPane, TabbedContent
 
 from pokenux.services import user_data
 from pokenux.textual.utils import bindings, i18n
@@ -24,6 +24,7 @@ class Pokenux(App):
     def on_mount(self):
         self.tabbed_content: TabbedContent = self.query_one("#tabbed_content")
         self.panes: list[TabPane] = []
+        self.refresh_language()
 
         if user_data.assets_are_missing():
             self.push_screen(FetchingScreen(), callback=self.on_fetching_finished)
@@ -34,9 +35,19 @@ class Pokenux(App):
         yield Header(name="Pokenux", icon="◒")
 
         with TabbedContent(id="tabbed_content"):
-            yield TabPane("⌂ Accueil", id="new_tab_tab")
+            yield TabPane(
+                i18n.text("⌂ Accueil", "⌂ Home"),
+                id="new_tab_tab",
+                name="home",
+                classes="i18n",
+            )
 
         yield Footer()
+
+    def refresh_language(self) -> None:
+        for binding in bindings.get_main_bindings():
+            self._bindings.key_to_bindings[binding.key] = [binding]
+        self.refresh_bindings()
 
     async def on_fetching_finished(self, finished: bool | None) -> None:
         if not finished:
@@ -108,4 +119,6 @@ class Pokenux(App):
             )
             await self.tabbed_content.add_pane(parameter_view, before="new_tab_tab")
 
+        self.set_focus(None)
         self.tabbed_content.active = "parameters"
+        self.query_one(ParametersView).query_one("#app_lang", Select).focus()

@@ -12,7 +12,8 @@ Feature ideas are welcome in the issue tracker too. Please use
   `pokenux --check`. A source install needs Python 3.14+; distribution bundles
   supply their own Python runtime.
 - **The first launch cannot load data:** a connection is needed to download
-  the initial catalogue from GitHub. Check connectivity and try launching again.
+  the initial catalogue from GitHub. The setup screen offers Retry and Quit.
+  Check connectivity, then retry; incomplete downloads are not activated.
 - **A card or quiz image does not load:** the image or metadata service may be
   unavailable. Use the in-app retry or skip action. Rendering also depends on
   your terminal's capabilities.

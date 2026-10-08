@@ -26,6 +26,9 @@ Textual application, with local saves and no account to create.
 | **Cards** | Browse sets and artwork, search by name, HP, type, or illustrator, and inspect individual card editions. |
 | **Boosters** | Earn virtual money, open packs, reveal your pulls, sell duplicates, and grow a collection saved between sessions. |
 
+Choose **French or English** independently for the interface, Pokédex and TCG
+in Settings. Changes apply to open tabs without restarting the app.
+
 The layout adapts to smaller terminals. Use the mouse or keyboard; **1–4** on
 the home screen opens an activity. Quiz answers accept French and English
 Pokémon names and ignore accents and punctuation.
@@ -56,9 +59,10 @@ when first requested. Your settings and collection stay in
 
 ## What to expect
 
-Pokénux is an actively evolving, Linux-first hobby project. Some interface
-screens are still in French; localisation coverage is incomplete. The quiz
-score is currently per session. Image rendering depends on your terminal, and
+Pokénux is an actively evolving, Linux-first hobby project. Old catalogues can
+lack translated metadata; Settings shows their status and offers updates.
+New asset editions include French and English and have their own version.
+The quiz score is currently per session. Image rendering depends on your terminal, and
 external catalogue services can occasionally be unavailable.
 
 There is no official Debian repository or AUR listing supplied by this project.
@@ -80,6 +84,7 @@ uv run pokenux
 [Contributing](CONTRIBUTING.md) covers the development loop and checks.
 The [roadmap](docs/roadmap.md) lists useful next steps without promising release
 dates. For distribution builds, see the [release guide](docs/releases.md).
+For bilingual catalogue builds and updates, see [versioned assets](docs/assets.md).
 
 ## Project information
 

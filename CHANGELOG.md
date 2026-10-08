@@ -7,6 +7,13 @@ dates use `YYYY-MM-DD`. Items marked **Unreleased** are not yet a published rele
 
 ### Added
 
+- Independent French/English preferences for the interface, Pokédex and TCG,
+  with live updates of open views and a redesigned Settings page.
+- Versioned bilingual catalogues, an independent asset release workflow,
+  integrity checks, atomic installation, cancellation and recovery.
+- English Pokémon categories, abilities and egg groups from pinned PokeAPI
+  metadata, with explicit unavailable values for untranslated legacy data.
+
 - Surprise quiz challenges, generation filters, hints, scoring, combos,
   session summaries, and answer review.
 - Image quizzes with blur, pixelation, silhouettes, and answer reveals;
@@ -30,6 +37,10 @@ dates use `YYYY-MM-DD`. Items marked **Unreleased** are not yet a published rele
 - Clarified the MIT license for code and separate rights for third-party content.
 
 ### Fixed
+
+- TCG requests keep their original language when preferences change, and
+  metadata caches are separated by catalogue version.
+- Deferred focus updates no longer pull players away from Settings.
 
 - Activity tabs now close safely and retain unique identifiers.
 - Booster purchases and sales persist atomically; opening a pack cannot lose

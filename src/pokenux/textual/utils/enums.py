@@ -1,6 +1,6 @@
 from pokenux.textual.utils import i18n
 
-languages: list = [("Français", "fr"), ("English", "en")]
+languages: list[tuple[str, str]] = [("Français", "fr"), ("English", "en")]
 
 
 def sort_by():

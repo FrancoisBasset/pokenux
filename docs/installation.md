@@ -107,6 +107,19 @@ The first interactive launch downloads a data catalogue. After that, local
 Pokédex browsing and text quizzes are available offline. Advanced card details,
 rarities, and artwork may still need a connection the first time they are used.
 
+Open **Settings** (`p`) to choose French or English independently for the
+interface, Pokémon data and card data. Save with **Ctrl+S**. Open views refresh;
+a quiz question already in progress keeps its original wording until the next
+question, and existing booster pulls remain in your collection.
+
+Settings also shows the installed catalogue version, its languages and available
+updates. Use **Check for updates**, then **Install update**. Download progress
+and errors stay visible, and cancellation preserves the previous catalogue.
+Versioned editions include both FR and EN; older catalogues may use a clearly
+reported language fallback. See [assets](assets.md) for the update format.
+
+![Independent language choices and catalogue updates](images/settings.svg)
+
 The locations below use the default data directory. If `XDG_DATA_HOME` is set
 to an absolute path, Pokénux uses `$XDG_DATA_HOME/pokenux/` instead. An unset,
 empty, or relative value keeps the historical `~/.local/share/pokenux/` default.
