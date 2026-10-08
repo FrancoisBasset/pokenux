@@ -1,5 +1,7 @@
 """Shared free-text answer rules for Pokémon and card quizzes."""
 
+from pokenux.services.localization import text
+
 from dataclasses import dataclass, field
 import re
 import unicodedata
@@ -92,19 +94,35 @@ class QuestionState:
     def submit(self, response: str) -> AnswerResult:
         if self.complete:
             return AnswerResult(
-                "finished", "Cette question est terminée.", True, self.succeeded
+                "finished",
+                text("Cette question est terminée.", "This question is complete."),
+                True,
+                self.succeeded,
             )
         if not normalize_answer(response):
-            return AnswerResult("empty", "Saisis une réponse pour continuer.")
+            return AnswerResult(
+                "empty",
+                text(
+                    "Saisis une réponse pour continuer.", "Enter an answer to continue."
+                ),
+            )
         if self.question.answer_kind == "collection":
             return self._submit_collection(response)
         if self.question.answer_kind == "order":
             return self._submit_order(response)
         if any(target.accepts(response) for target in self.question.targets):
             self.complete = self.succeeded = True
-            return AnswerResult("correct", "Bonne réponse !", True, True)
+            return AnswerResult(
+                "correct", text("Bonne réponse !", "Correct!"), True, True
+            )
         self.mistakes += 1
-        return AnswerResult("incorrect", "Ce n’est pas la réponse. Réessaie !")
+        return AnswerResult(
+            "incorrect",
+            text(
+                "Ce n’est pas la réponse. Réessaie !",
+                "That's not the answer. Try again!",
+            ),
+        )
 
     def _submit_collection(self, response: str) -> AnswerResult:
         accepted: list[str] = []
@@ -124,13 +142,22 @@ class QuestionState:
         self.mistakes += len(unknown)
         self.complete = len(self.found) == len(self.question.targets)
         self.succeeded = self.complete
-        message = f"{len(self.found)} / {len(self.question.targets)} trouvés."
+        message = text(
+            "{v0} / {v1} trouvés.",
+            "{v0} / {v1} found.",
+            v0=len(self.found),
+            v1=len(self.question.targets),
+        )
         if unknown:
-            message += " Réponse inconnue : " + ", ".join(unknown) + "."
+            message += (
+                text(" Réponse inconnue : ", " Unknown answer: ")
+                + ", ".join(unknown)
+                + "."
+            )
         elif duplicates and not accepted:
-            message += " Déjà trouvé !"
+            message += text(" Déjà trouvé !", " Already found!")
         if self.complete:
-            message = "Tout trouvé ! " + message
+            message = text("Tout trouvé ! ", "All found! ") + message
         status = (
             "correct"
             if self.complete
@@ -167,10 +194,19 @@ class QuestionState:
             offset += len(group)
         if valid:
             self.complete = self.succeeded = True
-            return AnswerResult("correct", "Le classement est correct !", True, True)
+            return AnswerResult(
+                "correct",
+                text("Le classement est correct !", "The order is correct!"),
+                True,
+                True,
+            )
         self.mistakes += 1
         return AnswerResult(
-            "incorrect", "Classe tous les noms dans l’ordre, séparés par des virgules."
+            "incorrect",
+            text(
+                "Classe tous les noms dans l’ordre, séparés par des virgules.",
+                "Put every name in order, separated by commas.",
+            ),
         )
 
     def reveal(self) -> AnswerResult:
@@ -178,5 +214,8 @@ class QuestionState:
             self.complete = True
             self.succeeded = False
         return AnswerResult(
-            "revealed", "Solution : " + self.solution, True, self.succeeded
+            "revealed",
+            text("Solution : ", "Solution: ") + self.solution,
+            True,
+            self.succeeded,
         )

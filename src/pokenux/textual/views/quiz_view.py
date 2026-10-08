@@ -1,5 +1,7 @@
 """A keyboard-friendly quiz arena with varied challenges and scored sessions."""
 
+from pokenux.services.localization import text
+
 from dataclasses import replace
 import random
 from typing import ClassVar, cast, override
@@ -37,6 +39,7 @@ from pokenux.services.games.quiz import (
 )
 from pokenux.services.games.quiz_session import QuizSession
 from pokenux.textual.widgets.quiz_image import QuizImage
+from pokenux.textual.utils.navigation import is_active_view
 
 
 MIXED_MODES = (
@@ -51,37 +54,39 @@ MIXED_MODES = (
     "number_to_name",
 )
 
-MODE_GROUPS = (
-    (
-        "01  ·  QUI EST CE POKÉMON ?",
-        ("image_shadow", "image", "image_pixelate", "image_blur"),
-    ),
-    (
-        "02  ·  JOUE AVEC LES MOTS",
-        ("anagram", "missing_letters", "fake_name", "initial"),
-    ),
-    (
-        "03  ·  PROUVE TON EXPERTISE",
+
+def mode_groups():
+    return (
         (
-            "evolution",
-            "pre_evolution",
-            "evolution_family",
-            "generation",
-            "height_order",
-            "weight_order",
-            "name_to_number",
-            "number_to_name",
+            text("01  ·  QUI EST CE POKÉMON ?", "01  ·  WHO'S THAT POKÉMON?"),
+            ("image_shadow", "image", "image_pixelate", "image_blur"),
         ),
-    ),
-)
+        (
+            text("02  ·  JOUE AVEC LES MOTS", "02  ·  PLAY WITH WORDS"),
+            ("anagram", "missing_letters", "fake_name", "initial"),
+        ),
+        (
+            text("03  ·  PROUVE TON EXPERTISE", "03  ·  TEST YOUR KNOWLEDGE"),
+            (
+                "evolution",
+                "pre_evolution",
+                "evolution_family",
+                "generation",
+                "height_order",
+                "weight_order",
+                "name_to_number",
+                "number_to_name",
+            ),
+        ),
+    )
 
 
 class QuizView(Vertical):
     BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("escape", "quiz_menu", "Menu Quiz"),
-        Binding("ctrl+n", "next_question", "Suivante"),
-        Binding("f1", "hint", "Indice"),
-        Binding("f2", "skip", "Passer"),
+        Binding("escape", "quiz_menu", text("Menu Quiz", "Quiz menu")),
+        Binding("ctrl+n", "next_question", text("Suivante", "Next")),
+        Binding("f1", "hint", text("Indice", "Hint")),
+        Binding("f2", "skip", text("Passer", "Skip")),
     ]
 
     class QuestionReady(Message):
@@ -102,6 +107,9 @@ class QuizView(Vertical):
         series: list[Serie] | None = None,
     ) -> None:
         super().__init__()
+        self._installed_pokemon = pokemon is None
+        self._installed_series = series is None
+        self._localized_widgets: list[tuple[Label | Button, str, str]] = []
         if pokemon is None:
             from pokenux.services import pokedex
 
@@ -116,10 +124,15 @@ class QuizView(Vertical):
         self._series: list[Serie] = list(series)
         self._cached_tcg_series: list[Serie] | None = None
         self._modes: dict[str, QuizMode] = {
-            mode.id: mode for mode in [*pokemon_quiz.MODES, *tcg_quiz.MODES]
+            mode.id: mode for mode in [*pokemon_quiz.get_modes(), *tcg_quiz.get_modes()]
         }
         self._modes["mixed"] = QuizMode(
-            "mixed", "Défi surprise", "Un mélange de jeux pour tester tes réflexes."
+            "mixed",
+            text("Défi surprise", "Surprise challenge"),
+            text(
+                "Un mélange de jeux pour tester tes réflexes.",
+                "A mix of games to test your reflexes.",
+            ),
         )
         self._mode: QuizMode | None = None
         self._state: QuestionState | None = None
@@ -143,18 +156,32 @@ class QuizView(Vertical):
         with Vertical(id="quiz_menu"):
             with Horizontal(id="quiz_hero"):
                 with Vertical(id="quiz_intro"):
-                    yield Label("LE COIN DES DRESSEURS", id="quiz_eyebrow")
-                    yield Label("À toi de jouer.", id="quiz_heading")
-                    yield Label(
+                    yield self._localized_label(
+                        "LE COIN DES DRESSEURS", "TRAINERS' CORNER", id="quiz_eyebrow"
+                    )
+                    yield self._localized_label(
+                        "À toi de jouer.", "Your turn to play.", id="quiz_heading"
+                    )
+                    yield self._localized_label(
                         "Des Pokémon à reconnaître, des noms à démêler, des records à battre.",
+                        "Pokémon to recognize, names to untangle, records to beat.",
                         classes="quiz-note",
                     )
                 yield Label("  ╭─────╮\n──┤  ◉  ├──\n  ╰─────╯", id="quiz_emblem")
             yield Button(
                 Text.assemble(
-                    ("▶  DÉFI SURPRISE · POKÉDEX", "bold #eee4ff"),
                     (
-                        "\nDes épreuves variées · un seul objectif : enchaîner les bonnes réponses",
+                        text(
+                            "▶  DÉFI SURPRISE · POKÉDEX",
+                            "▶  SURPRISE CHALLENGE · POKÉDEX",
+                        ),
+                        "bold #eee4ff",
+                    ),
+                    (
+                        text(
+                            "\nDes épreuves variées · un seul objectif : enchaîner les bonnes réponses",
+                            "\nVaried challenges · one goal: keep getting the answers right",
+                        ),
                         "#b9a9d2",
                     ),
                 ),
@@ -162,13 +189,13 @@ class QuizView(Vertical):
             )
             with Horizontal(id="quiz_settings"):
                 with Vertical(classes="quiz-setting"):
-                    yield Label("Ta partie")
+                    yield self._localized_label("Ta partie", "Your game")
                     yield Select(
                         [
-                            ("5 · express", 5),
-                            ("10 · classique", 10),
+                            (text("5 · express", "5 · quick"), 5),
+                            (text("10 · classique", "10 · classic"), 10),
                             ("20 · marathon", 20),
-                            ("Libre ∞", 0),
+                            (text("Libre ∞", "Free play ∞"), 0),
                         ],
                         value=10,
                         allow_blank=False,
@@ -184,47 +211,68 @@ class QuizView(Vertical):
                         }
                     )
                     yield Select(
-                        [("Toutes", 0)] + [(f"Gén. {n}", n) for n in generations],
+                        [(text("Toutes", "All"), 0)]
+                        + [
+                            (text("Gén. {v0}", "Gen. {v0}", v0=n), n)
+                            for n in generations
+                        ],
                         value=0,
                         allow_blank=False,
                         id="quiz_generation",
-                        tooltip="Limite les quiz Pokédex à une génération. Sans effet sur le TCG.",
+                        tooltip=text(
+                            "Limite les quiz Pokédex à une génération. Sans effet sur le TCG.",
+                            "Limit Pokédex quizzes to one generation. Does not affect TCG.",
+                        ),
                     )
                 with Vertical(classes="quiz-setting"):
-                    yield Label("Lettres cachées")
+                    yield self._localized_label("Lettres cachées", "Hidden letters")
                     yield Select(
                         [("Auto", 0)] + [(str(n), n) for n in range(1, 9)],
                         value=0,
                         allow_blank=False,
                         id="quiz_missing_letters",
-                        tooltip="Nombre de lettres à cacher dans le mode Lettres manquantes.",
+                        tooltip=text(
+                            "Nombre de lettres à cacher dans le mode Lettres manquantes.",
+                            "Number of letters to hide in Missing letters mode.",
+                        ),
                     )
             with TabbedContent(id="quiz_categories"):
                 with TabPane("◉  Pokédex", id="quiz_pokedex_modes"):
                     with VerticalScroll(classes="quiz-mode-scroll"):
-                        for title, modes in MODE_GROUPS:
+                        for title, modes in mode_groups():
                             yield Label(title, classes="quiz-section")
                             with Grid(classes="quiz-mode-grid"):
                                 for mode_id in modes:
                                     yield self._mode_button(self._modes[mode_id])
-                with TabPane("▧  Cartes TCG", id="quiz_tcg_modes"):
+                with TabPane(
+                    text("▧  Cartes TCG", "▧  TCG cards"), id="quiz_tcg_modes"
+                ):
                     with VerticalScroll(classes="quiz-mode-scroll"):
-                        yield Label("LA PASSION DES CARTES", classes="quiz-section")
+                        yield self._localized_label(
+                            "LA PASSION DES CARTES",
+                            "A PASSION FOR CARDS",
+                            classes="quiz-section",
+                        )
                         with Grid(classes="quiz-mode-grid"):
-                            for mode in tcg_quiz.MODES:
+                            for mode in tcg_quiz.get_modes():
                                 yield self._mode_button(mode)
-            yield Label(
+            yield self._localized_label(
                 "100 pts · −25 par erreur · indice : ÷2 · série parfaite : jusqu’à +100 · aucun chrono",
+                "100 pts · −25 per mistake · hint: ÷2 · clean streak: up to +100 · no timer",
                 id="quiz_normalization_note",
             )
 
         with Vertical(id="quiz_game"):
             with Horizontal(id="quiz_game_heading"):
                 yield Label("", id="quiz_game_title", markup=False)
-                yield Button(
+                yield self._localized_button(
                     "Bilan",
+                    "Results",
                     id="quiz_finish",
-                    tooltip="Terminer et voir les réponses déjà jouées.",
+                    tooltip=text(
+                        "Terminer et voir les réponses déjà jouées.",
+                        "Finish and review your completed answers.",
+                    ),
                 )
                 yield Button("← Menu", id="quiz_back")
             with Horizontal(id="quiz_hud"):
@@ -242,35 +290,59 @@ class QuizView(Vertical):
                 yield Label("", id="quiz_puzzle", markup=False)
                 yield Vertical(id="quiz_art_slot")
                 yield Horizontal(id="quiz_order_choices")
-                yield Button("↺ Recommencer l’ordre", id="quiz_order_reset")
+                yield self._localized_button(
+                    "↺ Recommencer l’ordre", "↺ Reset order", id="quiz_order_reset"
+                )
                 yield Label("", id="quiz_hint", markup=False)
                 yield Label("", id="quiz_found", markup=False)
                 yield Label("", id="quiz_solution", markup=False)
             with Horizontal(id="quiz_feedback_bar"):
                 yield Label("", id="quiz_feedback", markup=False)
-                yield Button("Réessayer", id="quiz_retry", disabled=True)
+                yield self._localized_button(
+                    "Réessayer", "Retry", id="quiz_retry", disabled=True
+                )
             yield Label("", id="quiz_answer_help", markup=False)
             with Horizontal(id="quiz_answer_row"):
-                yield Input(placeholder="Ta réponse…", id="quiz_answer", disabled=True)
-                yield Button("Valider ↵", id="quiz_submit", variant="primary")
+                yield Input(
+                    placeholder=text("Ta réponse…", "Your answer…"),
+                    id="quiz_answer",
+                    disabled=True,
+                )
+                yield self._localized_button(
+                    "Valider ↵", "Submit ↵", id="quiz_submit", variant="primary"
+                )
             with Horizontal(id="quiz_actions"):
-                yield Button(
+                yield self._localized_button(
                     "Indice · F1",
+                    "Hint · F1",
                     id="quiz_show_hint",
-                    tooltip="F1 · divise les points par deux, interrompt la série.",
+                    tooltip=text(
+                        "F1 · divise les points par deux, interrompt la série.",
+                        "F1 · halves points and breaks the streak.",
+                    ),
                 )
                 yield Button("Solution", id="quiz_reveal")
-                yield Button(
+                yield self._localized_button(
                     "Passer · F2",
+                    "Skip · F2",
                     id="quiz_skip",
-                    tooltip="F2 · question comptée sans points.",
+                    tooltip=text(
+                        "F2 · question comptée sans points.",
+                        "F2 · counts the question with no points.",
+                    ),
                 )
-                yield Button(
-                    "Suite →", id="quiz_next", disabled=True, variant="primary"
+                yield self._localized_button(
+                    "Suite →",
+                    "Next →",
+                    id="quiz_next",
+                    disabled=True,
+                    variant="primary",
                 )
 
         with VerticalScroll(id="quiz_summary"):
-            yield Label("✦  PARTIE TERMINÉE  ✦", id="quiz_summary_title")
+            yield self._localized_label(
+                "✦  PARTIE TERMINÉE  ✦", "✦  GAME COMPLETE  ✦", id="quiz_summary_title"
+            )
             yield Label("", id="quiz_summary_rank", markup=False)
             yield Label("", id="quiz_summary_message", markup=False)
             with Horizontal(id="quiz_summary_stats"):
@@ -280,8 +352,174 @@ class QuizView(Vertical):
             yield Label("", id="quiz_summary_details", markup=False)
             yield Label("", id="quiz_summary_review", markup=False)
             with Horizontal(id="quiz_summary_actions"):
-                yield Button("Rejouer ↵", id="quiz_replay", variant="primary")
-                yield Button("Changer de défi", id="quiz_choose")
+                yield self._localized_button(
+                    "Rejouer ↵", "Play again ↵", id="quiz_replay", variant="primary"
+                )
+                yield self._localized_button(
+                    "Changer de défi", "Choose a challenge", id="quiz_choose"
+                )
+
+    def _localized_label(self, fr: str, en: str, **kwargs) -> Label:
+        widget = Label(text(fr, en), **kwargs)
+        self._localized_widgets.append((widget, fr, en))
+        return widget
+
+    def _localized_button(self, fr: str, en: str, **kwargs) -> Button:
+        widget = Button(text(fr, en), **kwargs)
+        self._localized_widgets.append((widget, fr, en))
+        return widget
+
+    def refresh_language(self) -> None:
+        """Refresh chrome and future catalogues, retaining the current round."""
+        if not self._ready or not self.is_mounted:
+            return
+        from pokenux.textual.utils.translator import refresh_bindings
+
+        refresh_bindings(
+            self,
+            {
+                "quiz_menu": ("Menu Quiz", "Quiz menu"),
+                "next_question": ("Suivante", "Next"),
+                "hint": ("Indice", "Hint"),
+                "skip": ("Passer", "Skip"),
+            },
+        )
+        for widget, fr, en in self._localized_widgets:
+            if not widget.is_attached:
+                continue
+            if isinstance(widget, Button):
+                widget.label = text(fr, en)
+            else:
+                widget.update(text(fr, en))
+        for mode in [
+            *pokemon_quiz.get_modes(),
+            *tcg_quiz.get_modes(),
+            QuizMode(
+                "mixed",
+                text("Défi surprise", "Surprise challenge"),
+                text(
+                    "Un mélange de jeux pour tester tes réflexes.",
+                    "A mix of games to test your reflexes.",
+                ),
+            ),
+        ]:
+            self._modes[mode.id] = mode
+            if mode.id != "mixed":
+                button = self.query_one(f"#quiz_mode_{mode.id}", Button)
+                button.label = Text.assemble(
+                    (mode.title, "bold #e4dbf5"), ("\n" + mode.description, "#99aabd")
+                )
+                button.tooltip = mode.description
+        if self._mode:
+            self._mode = self._modes[self._mode.id]
+            self.query_one("#quiz_game_title", Label).update(self._mode.title)
+        self.query_one("#quiz_quickplay", Button).label = Text.assemble(
+            (
+                text("▶  DÉFI SURPRISE · POKÉDEX", "▶  SURPRISE CHALLENGE · POKÉDEX"),
+                "bold #eee4ff",
+            ),
+            (
+                text(
+                    "\nDes épreuves variées · un seul objectif : enchaîner les bonnes réponses",
+                    "\nVaried challenges · one goal: keep getting the answers right",
+                ),
+                "#b9a9d2",
+            ),
+        )
+        for widget, (title, _) in zip(
+            self.query("#quiz_pokedex_modes .quiz-section").results(Label),
+            mode_groups(),
+        ):
+            widget.update(title)
+        categories = self.query_one("#quiz_categories", TabbedContent)
+        categories.get_tab("quiz_tcg_modes").label = text(
+            "▧  Cartes TCG", "▧  TCG cards"
+        )
+        self.query_one("#quiz_answer", Input).placeholder = text(
+            "Ta réponse…", "Your answer…"
+        )
+        for identifier, options in (
+            (
+                "quiz_length",
+                [
+                    (text("5 · express", "5 · quick"), 5),
+                    (text("10 · classique", "10 · classic"), 10),
+                    ("20 · marathon", 20),
+                    (text("Libre ∞", "Free play ∞"), 0),
+                ],
+            ),
+            (
+                "quiz_generation",
+                [(text("Toutes", "All"), 0)]
+                + [
+                    (text("Gén. {number}", "Gen. {number}", number=n), n)
+                    for n in sorted(
+                        {p.generation for p in self._pokemon if p.pokedex_id > 0}
+                    )
+                ],
+            ),
+        ):
+            select = self.query_one(f"#{identifier}", Select)
+            value = select.value
+            with select.prevent(Select.Changed):
+                select.set_options(options)
+                select.value = value if any(code == value for _, code in options) else 0
+        for identifier, fr, en in (
+            (
+                "quiz_generation",
+                "Limite les quiz Pokédex à une génération. Sans effet sur le TCG.",
+                "Limit Pokédex quizzes to one generation. Does not affect TCG.",
+            ),
+            (
+                "quiz_missing_letters",
+                "Nombre de lettres à cacher dans le mode Lettres manquantes.",
+                "Number of letters to hide in Missing letters mode.",
+            ),
+            (
+                "quiz_finish",
+                "Terminer et voir les réponses déjà jouées.",
+                "Finish and review your completed answers.",
+            ),
+            (
+                "quiz_show_hint",
+                "F1 · divise les points par deux, interrompt la série.",
+                "F1 · halves points and breaks the streak.",
+            ),
+            (
+                "quiz_skip",
+                "F2 · question comptée sans points.",
+                "F2 · counts the question with no points.",
+            ),
+        ):
+            self.query_one(f"#{identifier}").tooltip = text(fr, en)
+        self.query_one("#quiz_next", Button).label = (
+            text("Résultats →", "Results →")
+            if self._session.finished
+            else text("Suite →", "Next →")
+        )
+        self.query_one("#quiz_show_hint", Button).label = (
+            text("Indice ✓", "Hint ✓")
+            if self._hint_used
+            else text("Indice · F1", "Hint · F1")
+        )
+        if self._installed_pokemon:
+            from pokenux.services import pokedex
+
+            self._pokemon = list(pokedex.all_pokemon)
+        if self._installed_series:
+            from pokenux.services import tcg_library
+
+            if tcg_library.get_language_status().requested != user_data.get_tcg_lang():
+                tcg_library.set_language(user_data.get_tcg_lang())
+            self._series = list(tcg_library.series)
+        self._cached_tcg_series = None
+        generation = self.query_one("#quiz_generation", Select).value
+        self._play_pokemon = [
+            p for p in self._pokemon if not generation or p.generation == generation
+        ]
+        self._update_score()
+        if self.query_one("#quiz_summary").display:
+            self._show_summary()
 
     @staticmethod
     def _mode_button(mode: QuizMode) -> Button:
@@ -299,6 +537,7 @@ class QuizView(Vertical):
     def on_mount(self) -> None:
         self._ready = True
         self._show_panel("quiz_menu")
+        self.refresh_language()
         _ = self.call_after_refresh(self._focus_visible)
 
     def on_show(self) -> None:
@@ -306,7 +545,7 @@ class QuizView(Vertical):
             _ = self.call_after_refresh(self._focus_visible)
 
     def _focus_visible(self) -> None:
-        if not self.is_mounted or self.region.height <= 0:
+        if not self.is_mounted or self.region.height <= 0 or not is_active_view(self):
             return
         if self.query_one("#quiz_menu").display:
             _ = self.query_one("#quiz_quickplay", Button).focus()
@@ -387,7 +626,9 @@ class QuizView(Vertical):
         self._image_ready = False
         self._image_failed = False
         self._question_image = None
-        self.query_one("#quiz_prompt", Label).update("Préparation de la question…")
+        self.query_one("#quiz_prompt", Label).update(
+            text("Préparation de la question…", "Preparing the question…")
+        )
         self.query_one("#quiz_art_slot").display = False
         for identifier in (
             "quiz_hint",
@@ -403,16 +644,23 @@ class QuizView(Vertical):
         self._set_answer_enabled(False)
         for identifier in ("quiz_show_hint", "quiz_reveal", "quiz_skip", "quiz_next"):
             self.query_one(f"#{identifier}", Button).disabled = True
-        self.query_one("#quiz_next", Button).label = "Suite →"
-        self.query_one("#quiz_show_hint", Button).label = "Indice · F1"
+        self.query_one("#quiz_next", Button).label = text("Suite →", "Next →")
+        self.query_one("#quiz_show_hint", Button).label = text(
+            "Indice · F1", "Hint · F1"
+        )
         self.query_one("#quiz_answer_help", Label).update(
-            "Entrée pour valider · accents et majuscules libres"
+            text(
+                "Entrée pour valider · accents et majuscules libres",
+                "Enter to submit · accents and case are optional",
+            )
         )
         panel = self.query_one("#quiz_question_panel", VerticalScroll)
         _ = panel.remove_class("quiz-correct", "quiz-incorrect")
-        self.query_one("#quiz_round_label", Label).update("NOUVELLE MANCHE")
+        self.query_one("#quiz_round_label", Label).update(
+            text("NOUVELLE MANCHE", "NEW ROUND")
+        )
         self.query_one("#quiz_retry", Button).display = False
-        self._feedback("Chargement…")
+        self._feedback(text("Chargement…", "Loading…"))
         self._update_score()
         _ = self._generate_question(
             self._revision, self._mode.id, self._missing_letters
@@ -465,7 +713,10 @@ class QuizView(Vertical):
                     break
             if question is None:
                 raise last_error or QuizUnavailableError(
-                    "Aucune question disponible pour cette sélection."
+                    text(
+                        "Aucune question disponible pour cette sélection.",
+                        "No question is available for this selection.",
+                    )
                 )
             if not worker.is_cancelled:
                 _ = self.post_message(self.QuestionReady(revision, question))
@@ -509,7 +760,9 @@ class QuizView(Vertical):
         last_error: TCGdexError | None = None
         for serie, card_set, card in candidates[:5]:
             if worker.is_cancelled:
-                raise QuizUnavailableError("Question annulée.")
+                raise QuizUnavailableError(
+                    text("Question annulée.", "Question cancelled.")
+                )
             try:
                 detailed = tcg_library.fetch_card_details(card.id)
             except TCGdexError as error:
@@ -519,7 +772,9 @@ class QuizView(Vertical):
                     return cached_question
                 continue
             if worker.is_cancelled:
-                raise QuizUnavailableError("Question annulée.")
+                raise QuizUnavailableError(
+                    text("Question annulée.", "Question cancelled.")
+                )
             enriched = replace(serie, sets=[replace(card_set, cards=[detailed])])
             try:
                 return tcg_quiz.generate_question(mode_id, [enriched])
@@ -531,7 +786,10 @@ class QuizView(Vertical):
         if last_error is not None:
             raise last_error
         raise QuizUnavailableError(
-            "Aucune carte adaptée trouvée. Réessaie pour en tirer d’autres."
+            text(
+                "Aucune carte adaptée trouvée. Réessaie pour en tirer d’autres.",
+                "No suitable card found. Try again to draw others.",
+            )
         )
 
     def _generate_cached_tcg_question(self, mode_id: str) -> QuizQuestion | None:
@@ -575,7 +833,14 @@ class QuizView(Vertical):
         self._last_mode = question.mode_id
         title = self._modes.get(question.mode_id)
         self.query_one("#quiz_round_label", Label).update(
-            f"MANCHE {self._session.completed + 1:02d}  /  {title.title.upper() if title else 'À TOI DE JOUER'}"
+            text(
+                "MANCHE {v0:02d}  /  {v1}",
+                "ROUND {v0:02d}  /  {v1}",
+                v0=self._session.completed + 1,
+                v1=title.title.upper()
+                if title
+                else text("À TOI DE JOUER", "YOUR TURN"),
+            )
         )
         self._seen_questions.add(self._question_key(question))
         prompt, separator, puzzle = question.prompt.rpartition(" : ")
@@ -591,22 +856,39 @@ class QuizView(Vertical):
         puzzle_label.update(" ".join(puzzle) if len(puzzle) <= 18 else puzzle)
         puzzle_label.display = is_puzzle
         self.query_one("#quiz_hint", Label).update(
-            question.hint or "Pas d’indice pour cette question."
+            question.hint
+            or text("Pas d’indice pour cette question.", "No hint for this question.")
         )
         if question.answer_kind == "order":
-            helper = "Clique les noms dans l’ordre, ou saisis-les avec des virgules."
+            helper = text(
+                "Clique les noms dans l’ordre, ou saisis-les avec des virgules.",
+                "Click the names in order, or type them separated by commas.",
+            )
         elif question.answer_kind == "collection":
-            helper = (
-                "Un nom à la fois, ou plusieurs réponses séparées par des virgules."
+            helper = text(
+                "Un nom à la fois, ou plusieurs réponses séparées par des virgules.",
+                "One name at a time, or several answers separated by commas.",
             )
         elif question.mode_id == "fake_name":
-            helper = "Oui = nom inventé · non = vrai Pokémon · Entrée pour valider"
+            helper = text(
+                "Oui = nom inventé · non = vrai Pokémon · Entrée pour valider",
+                "Yes = made-up name · no = real Pokémon · Enter to submit",
+            )
         elif question.mode_id in ("generation", "name_to_number", "tcg_hp"):
-            helper = "Saisis un nombre, puis Entrée pour valider."
+            helper = text(
+                "Saisis un nombre, puis Entrée pour valider.",
+                "Enter a number, then press Enter to submit.",
+            )
         elif question.mode_id in ("tcg_card_name", "tcg_anagram"):
-            helper = "Nom complet, avec le suffixe (ex, V…) · accents libres"
+            helper = text(
+                "Nom complet, avec le suffixe (ex, V…) · accents libres",
+                "Full name, including its suffix (ex, V…) · accents optional",
+            )
         else:
-            helper = "Entrée pour valider · accents et majuscules libres"
+            helper = text(
+                "Entrée pour valider · accents et majuscules libres",
+                "Enter to submit · accents and case are optional",
+            )
         self.query_one("#quiz_answer_help", Label).update(helper)
         choices = self.query_one("#quiz_order_choices", Horizontal)
         await choices.remove_children()
@@ -639,7 +921,9 @@ class QuizView(Vertical):
         self._set_answer_enabled(self._image_ready)
         if question.answer_kind == "collection":
             self.query_one("#quiz_found", Label).update(
-                f"◎  0 / {len(question.targets)} trouvés"
+                text(
+                    "◎  0 / {v0} trouvés", "◎  0 / {v0} found", v0=len(question.targets)
+                )
             )
             self.query_one("#quiz_found").display = True
         self.query_one("#quiz_show_hint", Button).disabled = not (
@@ -648,7 +932,9 @@ class QuizView(Vertical):
         self.query_one("#quiz_skip", Button).disabled = False
         self.query_one("#quiz_reveal", Button).disabled = not self._image_ready
         self._feedback(
-            "À toi de jouer !" if self._image_ready else "Chargement de l’image…"
+            text("À toi de jouer !", "Your turn!")
+            if self._image_ready
+            else text("Chargement de l’image…", "Loading image…")
         )
         self._update_score()
         self.query_one("#quiz_question_panel", VerticalScroll).scroll_home(
@@ -662,11 +948,14 @@ class QuizView(Vertical):
         if event.revision != self._revision:
             return
         self.query_one("#quiz_prompt", Label).update(
-            "Impossible de préparer cette question."
+            text(
+                "Impossible de préparer cette question.",
+                "Unable to prepare this question.",
+            )
         )
         self._feedback(event.message, error=True)
         retry = self.query_one("#quiz_next", Button)
-        retry.label = "Réessayer"
+        retry.label = text("Réessayer", "Retry")
         retry.disabled = False
         _ = self.call_after_refresh(retry.focus)
 
@@ -687,7 +976,7 @@ class QuizView(Vertical):
         )
         self.query_one("#quiz_reveal", Button).disabled = False
         self.query_one("#quiz_retry", Button).display = False
-        self._feedback("À toi de jouer !")
+        self._feedback(text("À toi de jouer !", "Your turn!"))
         _ = self.call_after_refresh(self._focus_visible)
 
     @on(QuizImage.Failed)
@@ -704,7 +993,11 @@ class QuizView(Vertical):
         self._set_answer_enabled(False)
         self.query_one("#quiz_show_hint", Button).disabled = True
         self._feedback(
-            "Image indisponible. Réessaie ou passe sans pénalité.", error=True
+            text(
+                "Image indisponible. Réessaie ou passe sans pénalité.",
+                "Image unavailable. Retry or skip without a penalty.",
+            ),
+            error=True,
         )
         retry = self.query_one("#quiz_retry", Button)
         retry.disabled = False
@@ -725,7 +1018,7 @@ class QuizView(Vertical):
         self._image_ready = self._image_failed = False
         self._set_answer_enabled(False)
         self.query_one("#quiz_retry", Button).display = False
-        self._feedback("Chargement de l’image…")
+        self._feedback(text("Chargement de l’image…", "Loading image…"))
         await slot.mount(self._question_image)
 
     def _set_answer_enabled(self, enabled: bool) -> None:
@@ -819,9 +1112,17 @@ class QuizView(Vertical):
             ]
             label = self.query_one("#quiz_found", Label)
             label.update(
-                f"●  {len(found)} / {len(self._state.question.targets)} trouvés · {' · '.join(found)}"
+                text(
+                    "●  {v0} / {v1} trouvés · {v2}",
+                    "●  {v0} / {v1} found · {v2}",
+                    v0=len(found),
+                    v1=len(self._state.question.targets),
+                    v2=" · ".join(found),
+                )
                 if found
-                else "Aucune réponse trouvée pour l’instant."
+                else text(
+                    "Aucune réponse trouvée pour l’instant.", "No answers found yet."
+                )
             )
             label.display = True
         if result.complete:
@@ -829,7 +1130,11 @@ class QuizView(Vertical):
             if result.correct:
                 earned = self._session.records[-1].points
                 combo = (
-                    f" · Série de {self._session.streak} !"
+                    text(
+                        " · Série de {v0} !",
+                        " · Streak of {v0}!",
+                        v0=self._session.streak,
+                    )
                     if self._session.streak > 1
                     else ""
                 )
@@ -840,7 +1145,11 @@ class QuizView(Vertical):
             self.query_one("#quiz_skip", Button).disabled = True
             next_button = self.query_one("#quiz_next", Button)
             next_button.disabled = False
-            next_button.label = "Résultats →" if self._session.finished else "Suite →"
+            next_button.label = (
+                text("Résultats →", "Results →")
+                if self._session.finished
+                else text("Suite →", "Next →")
+            )
             self._show_solution()
             _ = self.call_after_refresh(next_button.focus)
         self._update_score()
@@ -864,7 +1173,11 @@ class QuizView(Vertical):
         label.update(
             "\n".join(
                 part
-                for part in ("Réponse : " + self._state.solution, explanation, details)
+                for part in (
+                    text("Réponse : ", "Answer: ") + self._state.solution,
+                    explanation,
+                    details,
+                )
                 if part
             )
         )
@@ -897,9 +1210,12 @@ class QuizView(Vertical):
         label = self.query_one("#quiz_hint", Label)
         label.display = True
         self.query_one("#quiz_show_hint", Button).disabled = True
-        self.query_one("#quiz_show_hint", Button).label = "Indice ✓"
+        self.query_one("#quiz_show_hint", Button).label = text("Indice ✓", "Hint ✓")
         self._feedback(
-            "Un coup de pouce ! Les points de cette manche sont divisés par deux."
+            text(
+                "Un coup de pouce ! Les points de cette manche sont divisés par deux.",
+                "A helping hand! Points for this round are halved.",
+            )
         )
         self._update_score()
         _ = self.query_one("#quiz_question_panel", VerticalScroll).scroll_to_widget(
@@ -941,16 +1257,28 @@ class QuizView(Vertical):
         number = session.completed + int(not self._recorded)
         total = str(self._length) if self._length else "∞"
         self.query_one("#quiz_score", Label).update(
-            f"Manche {min(number, self._length) if self._length else number} / {total}"
+            text(
+                "Manche {v0} / {v1}",
+                "Round {v0} / {v1}",
+                v0=min(number, self._length) if self._length else number,
+                v1=total,
+            )
         )
         self.query_one("#quiz_points", Label).update(f"✦  {session.points} pts")
         active_clean = not self._hint_used and not (
             self._state and self._state.mistakes
         )
         streak = session.streak if active_clean or self._recorded else 0
-        self.query_one("#quiz_streak", Label).update(f"ϟ  Série {streak}")
+        self.query_one("#quiz_streak", Label).update(
+            text("ϟ  Série {v0}", "ϟ  Streak {v0}", v0=streak)
+        )
         self.query_one("#quiz_accuracy", Label).update(
-            f"●  {session.correct}/{session.completed} réussies"
+            text(
+                "●  {v0}/{v1} réussies",
+                "●  {v0}/{v1} correct",
+                v0=session.correct,
+                v1=session.completed,
+            )
         )
         _ = self.query_one("#quiz_streak").set_class(streak >= 2, "quiz-on-fire")
         progress = self.query_one("#quiz_progress", ProgressBar)
@@ -978,15 +1306,26 @@ class QuizView(Vertical):
             f"{session.points}\nPOINTS"
         )
         self.query_one("#quiz_summary_score", Label).update(
-            f"{session.accuracy} %\nRÉUSSITE"
+            text("{v0} %\nRÉUSSITE", "{v0} %\nACCURACY", v0=session.accuracy)
         )
         self.query_one("#quiz_summary_streak", Label).update(
-            f"{session.best_streak}\nMEILLEURE SÉRIE"
+            text("{v0}\nMEILLEURE SÉRIE", "{v0}\nBEST STREAK", v0=session.best_streak)
         )
         mode = self._mode.title if self._mode else "Quiz"
         self.query_one("#quiz_summary_details", Label).update(
-            f"{mode} · {session.correct} / {session.completed} réussies\n"
-            + f"{session.mistakes} erreur(s) · {session.hints} indice(s) · seules les manches terminées comptent"
+            text(
+                "{v0} · {v1} / {v2} réussies\n",
+                "{v0} · {v1} / {v2} correct\n",
+                v0=mode,
+                v1=session.correct,
+                v2=session.completed,
+            )
+            + text(
+                "{v0} erreur(s) · {v1} indice(s) · seules les manches terminées comptent",
+                "{v0} mistake(s) · {v1} hint(s) · only completed rounds count",
+                v0=session.mistakes,
+                v1=session.hints,
+            )
         )
         to_review = [
             record
@@ -999,9 +1338,12 @@ class QuizView(Vertical):
         )
         label = self.query_one("#quiz_summary_review", Label)
         label.update(
-            "POUR LA PROCHAINE FOIS\n\n" + review
+            text("POUR LA PROCHAINE FOIS\n\n", "FOR NEXT TIME\n\n") + review
             if review
-            else "✧  Tout est maîtrisé. Prêt pour un autre défi ?"
+            else text(
+                "✧  Tout est maîtrisé. Prêt pour un autre défi ?",
+                "✧  You've mastered everything. Ready for another challenge?",
+            )
         )
         label.display = bool(session.completed)
         self.query_one("#quiz_summary", VerticalScroll).scroll_home(animate=False)

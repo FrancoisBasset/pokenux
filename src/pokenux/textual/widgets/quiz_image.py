@@ -1,5 +1,7 @@
 """Quiz artwork, hidden until an explicit reveal after the question."""
 
+from pokenux.services.localization import text
+
 from asyncio import Lock
 from typing import override
 
@@ -51,7 +53,11 @@ def _silhouette(source: PILImage.Image) -> PILImage.Image:
 def transform_quiz_image(source: PILImage.Image, effect: str) -> PILImage.Image:
     """Return a transformed copy; the shared download cache keeps the original."""
     if effect not in _EFFECTS:
-        raise ValueError(f"Effet d’image inconnu : {effect}")
+        raise ValueError(
+            text(
+                "Effet d’image inconnu : {v0}", "Unknown image effect: {v0}", v0=effect
+            )
+        )
     image = ImageOps.exif_transpose(source).copy()
     if effect == "normal":
         return image
@@ -176,18 +182,41 @@ class QuizImage(Container):
         effect: str = "normal",
         *,
         classes: str | None = None,
-        placeholder: str = "Chargement de l’image…",
+        placeholder: str | None = None,
     ) -> None:
         if effect not in _EFFECTS:
-            raise ValueError(f"Effet d’image inconnu : {effect}")
+            raise ValueError(
+                text(
+                    "Effet d’image inconnu : {v0}",
+                    "Unknown image effect: {v0}",
+                    v0=effect,
+                )
+            )
         super().__init__(classes=classes)
         self.url: str | None = url
         self.effect: str = effect
-        self.placeholder: str = placeholder
+        self._default_placeholder = placeholder is None
+        self._failed = False
+        self.placeholder: str = placeholder or text(
+            "Chargement de l’image…", "Loading image…"
+        )
 
     @override
     def compose(self) -> ComposeResult:
         yield _QuizArtwork(self.url, self.effect, self.placeholder)
+
+    def refresh_language(self) -> None:
+        if not self.is_mounted:
+            return
+        if self._failed:
+            message = text("Image indisponible", "Image unavailable")
+        elif self._default_placeholder:
+            message = text("Chargement de l’image…", "Loading image…")
+            self.placeholder = message
+        else:
+            return
+        for label in self.query(Label):
+            label.update(message)
 
     async def reveal(self) -> None:
         """Reveal full artwork once; an in-flight download uses the same bytes.
@@ -215,6 +244,7 @@ class QuizImage(Container):
     def _report_failure(self) -> None:
         if not self.is_attached:
             return
+        self._failed = True
         for label in self.query(Label):
-            label.update("Image indisponible")
+            label.update(text("Image indisponible", "Image unavailable"))
         _ = self.post_message(self.Failed())

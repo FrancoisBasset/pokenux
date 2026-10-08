@@ -1,5 +1,7 @@
 """Session scoring and results shared by every quiz mode."""
 
+from pokenux.services.localization import text
+
 from dataclasses import dataclass, field
 
 from pokenux.services.games.quiz import QuestionState
@@ -41,7 +43,12 @@ class QuizSession:
 
     def __post_init__(self) -> None:
         if self.length is not None and self.length < 0:
-            raise ValueError("La longueur d’une session ne peut pas être négative.")
+            raise ValueError(
+                text(
+                    "La longueur d’une session ne peut pas être négative.",
+                    "A session cannot have a negative length.",
+                )
+            )
 
     def reset(self) -> None:
         self.records.clear()
@@ -95,43 +102,55 @@ class QuizSession:
     @property
     def rank(self) -> str:
         if not self.completed:
-            return "Dresseur en herbe"
+            return text("Dresseur en herbe", "Budding Trainer")
         if self.accuracy == 100 and not self.mistakes and not self.hints:
-            return "Maître Pokémon"
+            return text("Maître Pokémon", "Pokémon Master")
         if self.accuracy >= 80:
-            return "Champion d’arène"
+            return text("Champion d’arène", "Gym Leader")
         if self.accuracy >= 50:
-            return "Dresseur confirmé"
-        return "Explorateur Pokémon"
+            return text("Dresseur confirmé", "Experienced Trainer")
+        return text("Explorateur Pokémon", "Pokémon explorer")
 
     @property
     def title(self) -> str:
         if not self.completed:
-            return "À toi de jouer !"
+            return text("À toi de jouer !", "Your turn!")
         if self.accuracy == 100 and not self.mistakes and not self.hints:
-            return "Un sans-faute légendaire !"
+            return text("Un sans-faute légendaire !", "A legendary perfect score!")
         if self.accuracy >= 80:
-            return "Quel talent de dresseur !"
+            return text("Quel talent de dresseur !", "What a talented Trainer!")
         if self.accuracy >= 50:
-            return "Une belle aventure !"
-        return "Chaque rencontre t’apprend quelque chose !"
+            return text("Une belle aventure !", "A great adventure!")
+        return text(
+            "Chaque rencontre t’apprend quelque chose !",
+            "Every encounter teaches you something!",
+        )
 
     @property
     def message(self) -> str:
         if not self.completed:
-            return (
-                "Trouve les réponses et enchaîne les réussites pour gagner des points."
+            return text(
+                "Trouve les réponses et enchaîne les réussites pour gagner des points.",
+                "Find the answers and keep your streak going to earn points.",
             )
         if self.accuracy == 100 and not self.mistakes and not self.hints:
-            return "Toutes les réponses, sans erreur ni indice. Le prochain défi t’attend !"
-        if self.accuracy >= 80:
-            return "Tu connais ton sujet ! Vise une série sans erreur pour battre ton score."
-        if self.accuracy >= 50:
-            return (
-                "De belles réponses ! Revisite les solutions et tente un nouveau défi."
+            return text(
+                "Toutes les réponses, sans erreur ni indice. Le prochain défi t’attend !",
+                "Every answer, without a mistake or hint. Your next challenge awaits!",
             )
-        return (
-            "De nouvelles découvertes à chaque manche. Rejoue pour voir tes progrès !"
+        if self.accuracy >= 80:
+            return text(
+                "Tu connais ton sujet ! Vise une série sans erreur pour battre ton score.",
+                "You know your stuff! Aim for a clean streak to beat your score.",
+            )
+        if self.accuracy >= 50:
+            return text(
+                "De belles réponses ! Revisite les solutions et tente un nouveau défi.",
+                "Some great answers! Review the solutions and try another challenge.",
+            )
+        return text(
+            "De nouvelles découvertes à chaque manche. Rejoue pour voir tes progrès !",
+            "Discover something new each round. Play again to see your progress!",
         )
 
     def record(
@@ -147,10 +166,18 @@ class QuizSession:
             return previous[1]
         if not state.complete:
             raise ValueError(
-                "La question doit être terminée avant d’être comptabilisée."
+                text(
+                    "La question doit être terminée avant d’être comptabilisée.",
+                    "Finish the question before recording it.",
+                )
             )
         if self.finished:
-            raise ValueError("Cette session est déjà terminée.")
+            raise ValueError(
+                text(
+                    "Cette session est déjà terminée.",
+                    "This session is already complete.",
+                )
+            )
 
         succeeded = state.succeeded and not skipped
         points = 0

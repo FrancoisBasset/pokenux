@@ -4,6 +4,8 @@ The downloadable evolution lists include whole lineages. Questions deliberately
 use direct relatives so, for example, Bulbasaur's answer cannot be Venusaur.
 """
 
+from pokenux.services.localization import text
+
 from collections import defaultdict
 from collections.abc import Mapping
 from itertools import groupby
@@ -14,7 +16,7 @@ from urllib.parse import urlsplit
 
 from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.models.pokemon.pokemon_evolution import PokemonEvolution
-from pokenux.models.pokemon.pokemon_type import PokemonType
+from pokenux.models.pokemon.pokemon_type import PokemonType, localized_type_name
 from pokenux.services.games.quiz import (
     QuizMode,
     QuizQuestion,
@@ -24,26 +26,119 @@ from pokenux.services.games.quiz import (
 )
 
 
-MODES = [
-    QuizMode("initial", "Par initiale", "Retrouver tous les Pokémon d'une initiale."),
-    QuizMode("anagram", "Anagramme", "Remettre les lettres d'un nom dans l'ordre."),
-    QuizMode("missing_letters", "Lettres manquantes", "Compléter un nom troué."),
-    QuizMode("evolution", "Évolution", "Nommer une évolution immédiate."),
-    QuizMode("pre_evolution", "Pré-évolution", "Nommer la pré-évolution immédiate."),
-    QuizMode("evolution_family", "Avant et après", "Nommer les proches d'un Pokémon."),
-    QuizMode("fake_name", "Faux nom", "Déterminer si un nom de Pokémon est inventé."),
-    QuizMode("height_order", "Classer par taille", "Classer trois Pokémon par taille."),
-    QuizMode("weight_order", "Classer par poids", "Classer trois Pokémon par poids."),
-    QuizMode("generation", "Génération", "Donner la génération d'un Pokémon."),
-    QuizMode("image", "Par image", "Reconnaître un Pokémon sur son image."),
-    QuizMode("image_blur", "Image floutée", "Reconnaître un Pokémon flouté."),
-    QuizMode("image_pixelate", "Image pixelisée", "Reconnaître un Pokémon pixelisé."),
-    QuizMode("image_shadow", "Ombre", "Reconnaître une silhouette de Pokémon."),
-    QuizMode(
-        "name_to_number", "Nom → numéro", "Donner le numéro national d'un Pokémon."
-    ),
-    QuizMode("number_to_name", "Numéro → nom", "Retrouver un Pokémon par son numéro."),
-]
+def get_modes() -> list[QuizMode]:
+    return [
+        QuizMode(
+            "initial",
+            text("Par initiale", "By initial"),
+            text(
+                "Retrouver tous les Pokémon d'une initiale.",
+                "Find every Pokémon beginning with one letter.",
+            ),
+        ),
+        QuizMode(
+            "anagram",
+            text("Anagramme", "Anagram"),
+            text(
+                "Remettre les lettres d'un nom dans l'ordre.",
+                "Unscramble a Pokémon name.",
+            ),
+        ),
+        QuizMode(
+            "missing_letters",
+            text("Lettres manquantes", "Missing letters"),
+            text("Compléter un nom troué.", "Fill in the missing letters of a name."),
+        ),
+        QuizMode(
+            "evolution",
+            text("Évolution", "Evolution"),
+            text("Nommer une évolution immédiate.", "Name an immediate evolution."),
+        ),
+        QuizMode(
+            "pre_evolution",
+            text("Pré-évolution", "Previous evolution"),
+            text(
+                "Nommer la pré-évolution immédiate.",
+                "Name the immediate previous evolution.",
+            ),
+        ),
+        QuizMode(
+            "evolution_family",
+            text("Avant et après", "Before and after"),
+            text(
+                "Nommer les proches d'un Pokémon.",
+                "Name a Pokémon's immediate relatives.",
+            ),
+        ),
+        QuizMode(
+            "fake_name",
+            text("Faux nom", "Fake name"),
+            text(
+                "Déterminer si un nom de Pokémon est inventé.",
+                "Decide whether a Pokémon name is made up.",
+            ),
+        ),
+        QuizMode(
+            "height_order",
+            text("Classer par taille", "Order by height"),
+            text("Classer trois Pokémon par taille.", "Order three Pokémon by height."),
+        ),
+        QuizMode(
+            "weight_order",
+            text("Classer par poids", "Order by weight"),
+            text("Classer trois Pokémon par poids.", "Order three Pokémon by weight."),
+        ),
+        QuizMode(
+            "generation",
+            text("Génération", "Generation"),
+            text("Donner la génération d'un Pokémon.", "Give a Pokémon's generation."),
+        ),
+        QuizMode(
+            "image",
+            text("Par image", "By image"),
+            text(
+                "Reconnaître un Pokémon sur son image.",
+                "Recognize a Pokémon from its picture.",
+            ),
+        ),
+        QuizMode(
+            "image_blur",
+            text("Image floutée", "Blurred image"),
+            text("Reconnaître un Pokémon flouté.", "Recognize a blurred Pokémon."),
+        ),
+        QuizMode(
+            "image_pixelate",
+            text("Image pixelisée", "Pixelated image"),
+            text("Reconnaître un Pokémon pixelisé.", "Recognize a pixelated Pokémon."),
+        ),
+        QuizMode(
+            "image_shadow",
+            text("Ombre", "Silhouette"),
+            text(
+                "Reconnaître une silhouette de Pokémon.",
+                "Recognize a Pokémon silhouette.",
+            ),
+        ),
+        QuizMode(
+            "name_to_number",
+            text("Nom → numéro", "Name → number"),
+            text(
+                "Donner le numéro national d'un Pokémon.",
+                "Give a Pokémon's National Pokédex number.",
+            ),
+        ),
+        QuizMode(
+            "number_to_name",
+            text("Numéro → nom", "Number → name"),
+            text(
+                "Retrouver un Pokémon par son numéro.",
+                "Identify a Pokémon from its number.",
+            ),
+        ),
+    ]
+
+
+MODES = get_modes()
 
 
 def _name(pokemon: Pokemon, language: str) -> str:
@@ -62,23 +157,37 @@ def _target(pokemon: Pokemon, language: str, detail: str = "") -> QuizTarget:
 def _name_hint(name: str) -> str:
     letters = [letter for letter in name if letter.isalpha()]
     if not letters:
-        return f"Le nom contient {len(name)} caractères."
-    length = f"{len(letters)} lettre{'s' if len(letters) > 1 else ''}"
+        return text(
+            "Le nom contient {v0} caractères.",
+            "The name has {v0} characters.",
+            v0=len(name),
+        )
+    length = text(
+        "{v0} lettre{v1}",
+        "{v0} letter{v1}",
+        v0=len(letters),
+        v1="s" if len(letters) > 1 else "",
+    )
     if len(letters) < 3:
-        return f"Le nom contient {length}."
-    return f"Le nom commence par {letters[0].upper()} et contient {length}."
+        return text("Le nom contient {v0}.", "The name has {v0}.", v0=length)
+    return text(
+        "Le nom commence par {v0} et contient {v1}.",
+        "The name starts with {v0} and has {v1}.",
+        v0=letters[0].upper(),
+        v1=length,
+    )
 
 
 def _identity_hint(pokemon: Pokemon, language: str) -> str:
     """Give catalogue clues without printing the name being sought."""
     clues: list[str] = []
     if pokemon.generation > 0:
-        clues.append(f"Génération {pokemon.generation}")
+        clues.append(text("Génération {v0}", "Generation {v0}", v0=pokemon.generation))
 
     def type_name(item: PokemonType | Mapping[str, object]) -> str:
         return str(item.get("name", "") if isinstance(item, Mapping) else item.name)
 
-    types = [type_name(item) for item in pokemon.types]
+    types = [localized_type_name(type_name(item), language) for item in pokemon.types]
     if names := list(dict.fromkeys(name for name in types if name.strip())):
         clues.append(
             "Type" + ("s" if len(names) > 1 else "") + " : " + " / ".join(names)
@@ -176,8 +285,14 @@ def _invent_name(name: str, all_names: set[str], rng: random.Random) -> str:
 
 def _choose(pokemon: list[Pokemon], rng: random.Random, label: str) -> Pokemon:
     if not pokemon:
-        title = next((mode.title for mode in MODES if mode.id == label), label)
-        raise QuizUnavailableError(f"Aucun Pokémon disponible pour le mode {title}.")
+        title = next((mode.title for mode in get_modes() if mode.id == label), label)
+        raise QuizUnavailableError(
+            text(
+                "Aucun Pokémon disponible pour le mode {v0}.",
+                "No Pokémon is available for {v0} mode.",
+                v0=title,
+            )
+        )
     return rng.choice(pokemon)
 
 
@@ -195,7 +310,9 @@ def generate_question(
     always leave at least one letter visible, and an explicit count is exact.
     """
     if mode_id not in {mode.id for mode in MODES}:
-        raise ValueError(f"Mode de quiz inconnu : {mode_id}.")
+        raise ValueError(
+            text("Mode de quiz inconnu : {v0}.", "Unknown quiz mode: {v0}.", v0=mode_id)
+        )
     chooser = rng if rng is not None else random.Random()
     language = "en" if language == "en" else "fr"
     catalogue = list(
@@ -206,7 +323,9 @@ def generate_question(
         }.values()
     )
     if not catalogue:
-        raise QuizUnavailableError("Le catalogue Pokémon est vide.")
+        raise QuizUnavailableError(
+            text("Le catalogue Pokémon est vide.", "The Pokémon catalogue is empty.")
+        )
 
     if mode_id == "initial":
         by_initial: dict[str, list[Pokemon]] = defaultdict(list)
@@ -222,22 +341,32 @@ def generate_question(
                 generations[item.generation] += 1
         return QuizQuestion(
             mode_id=mode_id,
-            prompt=f"Nomme les {len(members)} Pokémon commençant par {initial.upper()}.",
+            prompt=text(
+                "Nomme les {v0} Pokémon commençant par {v1}.",
+                "Name the {v0} Pokémon beginning with {v1}.",
+                v0=len(members),
+                v1=initial.upper(),
+            ),
             targets=tuple(_target(item, language) for item in members),
             answer_kind="collection",
             hint=(
-                "Répartition : "
+                text("Répartition : ", "Breakdown: ")
                 + " · ".join(
-                    f"génération {generation} : {count}"
+                    text(
+                        "génération {v0} : {v1}",
+                        "generation {v0}: {v1}",
+                        v0=generation,
+                        v1=count,
+                    )
                     for generation, count in sorted(generations.items())
                 )
                 if generations
-                else "Longueurs des noms : "
+                else text("Longueurs des noms : ", "Name lengths: ")
                 + ", ".join(
                     str(sum(letter.isalpha() for letter in _name(item, language)))
                     for item in members
                 )
-                + " lettres."
+                + text(" lettres.", " letters.")
             ),
         )
 
@@ -262,11 +391,19 @@ def generate_question(
             relatives = parents[selected.pokedex_id] + children[selected.pokedex_id]
             return QuizQuestion(
                 mode_id=mode_id,
-                prompt=f"Nomme la pré-évolution et les évolutions immédiates de {name}.",
+                prompt=text(
+                    "Nomme la pré-évolution et les évolutions immédiates de {v0}.",
+                    "Name the previous evolution and immediate evolutions of {v0}.",
+                    v0=name,
+                ),
                 targets=tuple(_target(item, language) for item in relatives),
                 answer_kind="collection",
                 hint=" · ".join(
-                    ("Avant : " if item in parents[selected.pokedex_id] else "Après : ")
+                    (
+                        text("Avant : ", "Before: ")
+                        if item in parents[selected.pokedex_id]
+                        else text("Après : ", "After: ")
+                    )
                     + _name_hint(_name(item, language))
                     for item in relatives
                 ),
@@ -276,12 +413,25 @@ def generate_question(
             if mode_id == "evolution"
             else parents[selected.pokedex_id]
         )
-        subject = "une évolution" if mode_id == "evolution" else "la pré-évolution"
+        subject = (
+            text("une évolution", "evolution")
+            if mode_id == "evolution"
+            else text("la pré-évolution", "previous evolution")
+        )
         return QuizQuestion(
             mode_id=mode_id,
-            prompt=f"Nomme {subject} immédiate de {name}.",
+            prompt=text(
+                "Nomme {v0} immédiate de {v1}.",
+                "Name an immediate {v0} of {v1}.",
+                v0=subject,
+                v1=name,
+            ),
             targets=tuple(_target(item, language) for item in relatives),
-            hint=("Une possibilité : " if len(relatives) > 1 else "")
+            hint=(
+                text("Une possibilité : ", "One possibility: ")
+                if len(relatives) > 1
+                else ""
+            )
             + _identity_hint(relatives[0], language),
             explanation=" / ".join(_name(item, language) for item in relatives),
         )
@@ -299,7 +449,10 @@ def generate_question(
         candidates = [item for item in catalogue if item.pokedex_id in values]
         if len(candidates) < 3 or len(set(values.values())) < 2:
             raise QuizUnavailableError(
-                "Il faut trois Pokémon et au moins deux mesures différentes."
+                text(
+                    "Il faut trois Pokémon et au moins deux mesures différentes.",
+                    "Three Pokémon with at least two different measurements are needed.",
+                )
             )
         selected = chooser.sample(candidates, 3)
         if len({values[item.pokedex_id] for item in selected}) == 1:
@@ -315,13 +468,22 @@ def generate_question(
             tuple(str(item.pokedex_id) for item in members)
             for _, members in groupby(ordered, key=lambda item: values[item.pokedex_id])
         )
-        dimension = "taille" if field == "height" else "poids"
+        dimension = (
+            text("taille", "height") if field == "height" else text("poids", "weight")
+        )
         direction = (
-            "petit au plus grand" if field == "height" else "léger au plus lourd"
+            text("petit au plus grand", "shortest to tallest")
+            if field == "height"
+            else text("léger au plus lourd", "lightest to heaviest")
         )
         return QuizQuestion(
             mode_id=mode_id,
-            prompt=f"Classe par {dimension}, du plus {direction} : "
+            prompt=text(
+                "Classe par {v0}, du plus {v1} : ",
+                "Order by {v0}, from {v1}: ",
+                v0=dimension,
+                v1=direction,
+            )
             + " · ".join(_name(item, language) for item in selected),
             targets=tuple(
                 _target(
@@ -331,9 +493,13 @@ def generate_question(
             ),
             answer_kind="order",
             ordering_groups=groups,
-            hint=f"{_name(ordered[0], language)} est plus "
-            + ("petit" if field == "height" else "léger")
-            + f" que {_name(ordered[-1], language)}.",
+            hint=text("{v0} est plus ", "{v0} is ", v0=_name(ordered[0], language))
+            + (
+                text("petit", "shorter")
+                if field == "height"
+                else text("léger", "lighter")
+            )
+            + text(" que {v0}.", " than {v0}.", v0=_name(ordered[-1], language)),
             explanation=" → ".join(
                 f"{_name(item, language)} ({item.height if field == 'height' else item.weight})"
                 for item in ordered
@@ -354,7 +520,7 @@ def generate_question(
         }[mode_id]
         return QuizQuestion(
             mode_id=mode_id,
-            prompt="Quel est ce Pokémon ?",
+            prompt=text("Quel est ce Pokémon ?", "Who's that Pokémon?"),
             targets=(_target(selected, language),),
             image_url=_image_url(selected.sprites.regular),
             image_effect=effect,
@@ -380,7 +546,11 @@ def generate_question(
             letters[0], letters[different] = letters[different], letters[0]
         return QuizQuestion(
             mode_id=mode_id,
-            prompt=f"Retrouve le nom : {''.join(letters).upper()}",
+            prompt=text(
+                "Retrouve le nom : {v0}",
+                "Unscramble the name : {v0}",
+                v0="".join(letters).upper(),
+            ),
             targets=tuple(
                 _target(item, language)
                 for item in catalogue
@@ -391,7 +561,12 @@ def generate_question(
 
     if mode_id == "missing_letters":
         if missing_letters is not None and missing_letters < 1:
-            raise ValueError("Le nombre de lettres manquantes doit être positif.")
+            raise ValueError(
+                text(
+                    "Le nombre de lettres manquantes doit être positif.",
+                    "The number of missing letters must be positive.",
+                )
+            )
         candidates = [
             item
             for item in catalogue
@@ -412,7 +587,9 @@ def generate_question(
         )
         return QuizQuestion(
             mode_id=mode_id,
-            prompt=f"Complète le nom : {pattern}",
+            prompt=text(
+                "Complète le nom : {v0}", "Complete the name : {v0}", v0=pattern
+            ),
             targets=tuple(
                 _target(item, language)
                 for item in catalogue
@@ -425,7 +602,13 @@ def generate_question(
                     for index, letter in enumerate(_name(item, language))
                 )
             ),
-            hint=f"{count} lettre{'s' if count > 1 else ''} manquante{'s' if count > 1 else ''}. "
+            hint=text(
+                "{v0} lettre{v1} manquante{v2}. ",
+                "{v0} missing letter{v1}. ",
+                v0=count,
+                v1="s" if count > 1 else "",
+                v2="s" if count > 1 else "",
+            )
             + _identity_hint(selected, language),
         )
 
@@ -450,17 +633,31 @@ def generate_question(
             name = _invent_name(name, all_names, chooser)
         answer = QuizTarget(
             key="yes" if fake else "no",
-            label="Oui" if fake else "Non",
+            label=text("Oui", "Yes") if fake else text("Non", "No"),
             aliases=("oui", "yes", "o", "faux", "inventé")
             if fake
             else ("non", "no", "n", "réel", "vrai nom"),
         )
         return QuizQuestion(
             mode_id=mode_id,
-            prompt=f"« {name} » est-il un faux nom de Pokémon ?",
+            prompt=text(
+                "« {v0} » est-il un faux nom de Pokémon ?",
+                "Is “{v0}” a made-up Pokémon name?",
+                v0=name,
+            ),
             targets=(answer,),
-            hint="Observe chaque lettre : un nom inventé peut ne différer du vrai que d'une lettre.",
-            explanation=f"« {name} » est {'un nom inventé' if fake else 'un vrai nom de Pokémon'}.",
+            hint=text(
+                "Observe chaque lettre : un nom inventé peut ne différer du vrai que d'une lettre.",
+                "Look at every letter: a made-up name may differ from the real one by just one letter.",
+            ),
+            explanation=text(
+                "« {v0} » est {v1}.",
+                "“{v0}” is {v1}.",
+                v0=name,
+                v1=text("un nom inventé", "a made-up name")
+                if fake
+                else text("un vrai nom de Pokémon", "a real Pokémon name"),
+            ),
         )
 
     selected = _choose(
@@ -483,15 +680,33 @@ def generate_question(
         )
         return QuizQuestion(
             mode_id=mode_id,
-            prompt=f"Dans quelle génération apparaît {name} ?",
-            targets=(QuizTarget(str(generation), f"Génération {generation}", aliases),),
-            hint=f"Son numéro dans le Pokédex national est #{selected.pokedex_id:04d}.",
+            prompt=text(
+                "Dans quelle génération apparaît {v0} ?",
+                "Which generation introduced {v0}?",
+                v0=name,
+            ),
+            targets=(
+                QuizTarget(
+                    str(generation),
+                    text("Génération {v0}", "Generation {v0}", v0=generation),
+                    aliases,
+                ),
+            ),
+            hint=text(
+                "Son numéro dans le Pokédex national est #{v0:04d}.",
+                "Its National Pokédex number is #{v0:04d}.",
+                v0=selected.pokedex_id,
+            ),
         )
     if mode_id == "name_to_number":
         number = selected.pokedex_id
         return QuizQuestion(
             mode_id=mode_id,
-            prompt=f"Quel est le numéro de {name} dans le Pokédex national ?",
+            prompt=text(
+                "Quel est le numéro de {v0} dans le Pokédex national ?",
+                "What is {v0}'s National Pokédex number?",
+                v0=name,
+            ),
             targets=(
                 QuizTarget(
                     str(number),
@@ -505,12 +720,20 @@ def generate_question(
                     ),
                 ),
             ),
-            hint=f"Son numéro se situe entre #{((number - 1) // 50) * 50 + 1:04d} "
-            + f"et #{((number - 1) // 50 + 1) * 50:04d}.",
+            hint=text(
+                "Son numéro se situe entre #{v0:04d} ",
+                "Its number is between #{v0:04d} ",
+                v0=(number - 1) // 50 * 50 + 1,
+            )
+            + text("et #{v0:04d}.", "and #{v0:04d}.", v0=((number - 1) // 50 + 1) * 50),
         )
     return QuizQuestion(
         mode_id=mode_id,
-        prompt=f"Quel Pokémon porte le numéro #{selected.pokedex_id:04d} dans le Pokédex national ?",
+        prompt=text(
+            "Quel Pokémon porte le numéro #{v0:04d} dans le Pokédex national ?",
+            "Which Pokémon is #{v0:04d} in the National Pokédex?",
+            v0=selected.pokedex_id,
+        ),
         targets=(_target(selected, language),),
         hint=_identity_hint(selected, language),
     )
