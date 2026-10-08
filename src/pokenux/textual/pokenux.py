@@ -18,6 +18,7 @@ class Pokenux(App):
         "css/pokedex_view.css",
         "css/tcg_view.css",
         "css/quiz_view.css",
+        "css/simulator_view.css",
     ]
 
     def on_mount(self):

@@ -96,10 +96,66 @@ other text games work from the local catalogue.
 
 ### Boosters
 
-* Expansion selection
-* Variable pricing
-* Booster opening flow (TUI)
-* Sell duplicates
+Open **Boosters** from **Accueil**. The shop lists installed extensions with
+prices in virtual euros. Modern packs are priced around €5.50–€8, with higher
+estimates for sought-after and vintage sets. Prices depend on the extension
+and its era instead of its position in the catalogue. They are estimates for
+the game, not live market quotations. Search by extension or series, choose a
+pack, then **Acheter & ouvrir**. Cards can be revealed one at a time or together.
+Select a revealed card to see its artwork; press
+Enter on a card row for a full-screen preview, then Escape to return.
+
+The **Travail** tab is a clicker: a new account starts with €5.00 and each task
+earns €0.05. Tasks are limited to one every two seconds across all tabs and
+restarts; extra clicks earn nothing. Training starts at €25 and its cost doubles
+at each level, adding €0.01 per task per level up to level ten (€0.15). `w` works
+and `r` refreshes the account when typing outside a search field.
+
+The **Collection** tab shows quantities and resale values. Sell one copy,
+every copy of the selected card, or all duplicates while keeping one copy of
+each card and finish. Normal, reverse and holographic versions are separate
+entries. Modern bulk cards sell for a few cents, while some rare pulls can be
+worth more than their pack. Sales immediately fund further purchases. Card and
+extension searches ignore case, accents and punctuation.
+
+Money, training, prices and inventory are saved in
+`~/.local/share/pokenux/simulator.sqlite3`, shared by all booster tabs.
+Cards enter the saved collection at purchase time, so closing an unopened or
+partially revealed pack loses nothing. Purchases and sales are atomic. The
+previous P$ save migrates automatically at 1 P$ = €0.01, keeping quantities
+and progress. Money is stored as integer cents to avoid rounding errors.
+
+Card rarity comes from TCGdex, never from a hash of the card ID. Missing
+rarities are loaded in the background for the selected extension and cached
+locally; a failed or incomplete catalogue blocks purchasing and offers a
+retry without charging money. Once cached, opening works offline. Promotional
+sets without ordinary boosters and special formats whose cross-set slots are
+not modelled (such as Celebrations) are excluded. Duplicate cards of the same
+finish are avoided within a pack.
+
+Collation depends on the era: Base/Neo packs contain eleven cards, e-Card/EX
+packs contain nine cards, later reverse-era packs contain ten cards with a
+reverse slot, and standard Scarlet & Violet packs
+contain four common, three uncommon and three foil slots. Special-hit
+probabilities and resale prices remain estimates for the game, rather than
+official pull rates or actual card valuations. The extra Energy and code
+cards in modern physical packs are not part of the collectible simulation.
+
+**30th Anniversary** uses its own five-card, all-foil profile with one guaranteed
+Pikachu rare and four other distinct cards. **30th Anniversary Classic Collection**
+is offered as a separate three-card foil booster. These profiles use estimated
+draw distributions without mixing the two catalogues; the bonus basic Energy
+is not simulated. The publisher specifies an all-foil anniversary booster, so
+this profile uses foil finishes even where TCGdex marks a card as normal-only,
+without changing its saved source metadata or rarity. The guaranteed Pikachu
+slot has an estimated resale value of €0.50 in the game.
+
+Composition references: [Pokémon's 30th Anniversary product showcase](https://www.pokemon.com/fr/news/jcc-pokemon-produits-30-anniversaire)
+and [the UPC's separate three-card Classic booster](https://www.pokemon.com/fr/jcc-pokemon/galerie-produits/collections-ultra-premium-30-anniversaire-journee-et-soiree).
+
+Reference points: [Smyths' €5.99 modern booster listing](https://www.smythstoys.com/fr/fr-fr/jouets/jeux-de-societe-et-puzzles/cartes-a-collectionner/c/SM13010611),
+[Pokémon's booster composition](https://support.pokemon.com/hc/fr/articles/360000981613-Que-puis-je-trouver-dans-un-booster-du-Jeu-de-Cartes-%C3%A0-Collectionner-Pok%C3%A9mon),
+and [TCGdex's rarity filtering](https://tcgdex.dev/rest/filtering-sorting-pagination).
 
 ---
 

@@ -1,0 +1,336 @@
+SimulatorView {
+    height: 1fr;
+    background: #060e12;
+    color: #e3eaf3;
+    padding: 0 1;
+}
+SimulatorView #sim_heading {
+    height: 1;
+    color: #e7bd70;
+    text-style: bold;
+}
+SimulatorView #sim_wallet {
+    height: 1;
+    color: #80d69f;
+    text-style: bold;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+SimulatorView #sim_note {
+    height: 1;
+    color: #8795a8;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+SimulatorView #sim_heading,
+SimulatorView #sim_wallet,
+SimulatorView #sim_note,
+SimulatorView #sim_offer_info,
+SimulatorView #sim_opening_status,
+SimulatorView #sim_opened_info,
+SimulatorView #sim_collection_stats,
+SimulatorView #sim_sale_info,
+SimulatorView #sim_feedback,
+SimulatorView #sim_work_title,
+SimulatorView #sim_work_info,
+SimulatorView #sim_work_stats,
+SimulatorView #sim_work_tip { width: 1fr; }
+SimulatorView #sim_sections,
+SimulatorView #sim_sections > ContentSwitcher,
+SimulatorView #sim_sections TabPane {
+    height: 1fr;
+}
+SimulatorView #sim_sections TabPane { padding: 0; }
+SimulatorView #sim_sections > ContentTabs,
+SimulatorView #sim_sections Tabs { height: 3; }
+SimulatorView #sim_sections ContentTab {
+    height: 3;
+    padding: 1 1;
+    color: #aab3be;
+}
+SimulatorView #sim_sections ContentTab.-active { color: #e7bd70; }
+SimulatorView #sim_sections Underline { color: #80d69f; }
+SimulatorView #sim_shop_filters,
+SimulatorView #sim_collection_filters { height: 3; }
+SimulatorView #sim_offer_search,
+SimulatorView #sim_collection_search { width: 1fr; margin-right: 1; }
+SimulatorView #sim_offer { width: 2fr; }
+SimulatorView #sim_collection_filter { width: 27; }
+SimulatorView Input,
+SimulatorView SelectCurrent {
+    background: #0d1a20;
+    border: tall #334a48;
+}
+SimulatorView Input:focus,
+SimulatorView Select:focus > SelectCurrent { border: tall #80d69f; }
+SimulatorView Button {
+    height: 3;
+    min-width: 10;
+    border: tall transparent;
+    background: #162c29;
+    color: #a4e2b7;
+    padding: 0 1;
+}
+SimulatorView Button:hover,
+SimulatorView Button:focus {
+    background: #254239;
+    color: #f1f5e9;
+    border: tall #80d69f;
+}
+SimulatorView Button:disabled { color: #63756e; background: #111f20; }
+SimulatorView #sim_buy,
+SimulatorView #sim_work {
+    background: #39311f;
+    color: #e7bd70;
+}
+SimulatorView #sim_buy:hover,
+SimulatorView #sim_buy:focus,
+SimulatorView #sim_work:hover,
+SimulatorView #sim_work:focus {
+    background: #51432a;
+    color: #ffe2a7;
+    border: tall #e7bd70;
+}
+SimulatorView #sim_buy_actions,
+SimulatorView #sim_sale_actions { height: 3; }
+SimulatorView #sim_buy_actions Button,
+SimulatorView #sim_sale_actions Button {
+    width: 1fr;
+    min-width: 0;
+    margin-right: 1;
+}
+SimulatorView #sim_reveal_all,
+SimulatorView #sim_sell_duplicates { margin-right: 0; }
+SimulatorView #sim_buy_actions #sim_buy { width: 1.5fr; }
+SimulatorView #sim_buy_actions #sim_reveal_next { width: 1.1fr; }
+SimulatorView #sim_offer_info,
+SimulatorView #sim_sale_info {
+    height: auto;
+    min-height: 1;
+    max-height: 2;
+    color: #aab3be;
+}
+SimulatorView #sim_opening_status,
+SimulatorView #sim_collection_stats {
+    height: 1;
+    color: #e7bd70;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+SimulatorView #sim_opening_panel,
+SimulatorView #sim_collection_panel {
+    height: 1fr;
+    min-height: 0;
+    scrollbar-size: 1 1;
+}
+SimulatorView #sim_opening_layout,
+SimulatorView #sim_collection_layout {
+    height: 1fr;
+    min-height: 12;
+}
+SimulatorView #sim_opened_art,
+SimulatorView #sim_collection_art {
+    height: 1fr;
+    min-height: 12;
+    width: 34;
+    border: round #826c42;
+    background: #111d23;
+    align: center middle;
+    overflow: hidden hidden;
+}
+SimulatorView #sim_opened_art { margin-right: 1; }
+SimulatorView #sim_collection_art { margin-left: 1; }
+SimulatorView #sim_opened_art > RemoteImage,
+SimulatorView #sim_collection_art > RemoteImage {
+    height: 1fr;
+    width: 1fr;
+}
+SimulatorView #sim_opened_art > Label,
+SimulatorView #sim_collection_art > Label {
+    height: 1fr;
+    width: 1fr;
+    padding: 1;
+    content-align: center middle;
+    color: #8795a8;
+}
+SimulatorView #sim_opened_list { width: 1fr; height: 1fr; }
+SimulatorView #sim_opened_info {
+    height: auto;
+    min-height: 1;
+    max-height: 3;
+    color: #aab3be;
+}
+SimulatorView DataTable {
+    height: 1fr;
+    width: 1fr;
+    background: #09171d;
+    scrollbar-size: 1 1;
+}
+SimulatorView DataTable > .datatable--header {
+    background: #163029;
+    color: #a4e2b7;
+    text-style: bold;
+}
+SimulatorView DataTable > .datatable--odd-row { background: #0d1b21; }
+SimulatorView DataTable > .datatable--even-row { background: #09171d; }
+SimulatorView DataTable > .datatable--cursor {
+    background: #304234;
+    color: #ffe2a7;
+    text-style: bold;
+}
+SimulatorView #sim_work_panel {
+    height: 1fr;
+    padding: 1 2;
+    border: round #334a48;
+    background: #09171d;
+    scrollbar-size: 1 1;
+}
+SimulatorView #sim_work_title {
+    height: auto;
+    color: #e7bd70;
+    text-style: bold;
+    margin-bottom: 1;
+}
+SimulatorView #sim_work_info,
+SimulatorView #sim_work_stats,
+SimulatorView #sim_work_tip {
+    height: auto;
+    color: #aab3be;
+    margin-bottom: 1;
+}
+SimulatorView #sim_work_stats { color: #80d69f; }
+SimulatorView #sim_work_tip { color: #8795a8; }
+SimulatorView #sim_work_panel Button {
+    width: 36;
+    max-width: 100%;
+    margin-bottom: 1;
+}
+SimulatorView #sim_feedback {
+    height: auto;
+    min-height: 1;
+    max-height: 2;
+    color: #80d69f;
+}
+SimulatorView #sim_feedback.sim-error { color: #f1847c; }
+SimulatorView.narrow #sim_collection_filter { width: 22; }
+SimulatorView.narrow #sim_opening_layout,
+SimulatorView.narrow #sim_collection_layout {
+    layout: vertical;
+    height: 39;
+    min-height: 39;
+}
+SimulatorView.narrow #sim_opened_art,
+SimulatorView.narrow #sim_collection_art {
+    height: 24;
+    width: 1fr;
+    margin: 0;
+}
+SimulatorView.narrow #sim_opened_art { margin-bottom: 1; }
+SimulatorView.narrow #sim_collection_art { margin-top: 1; }
+SimulatorView.narrow #sim_opened_list,
+SimulatorView.narrow #sim_collection { height: 14; }
+SimulatorView.short #sim_sections > ContentTabs,
+SimulatorView.short #sim_sections Tabs { height: 1; }
+SimulatorView.short #sim_sections ContentTab { height: 1; padding: 0 1; }
+SimulatorView.short #sim_sections Underline { display: none; }
+SimulatorView.short #sim_buy_actions,
+SimulatorView.short #sim_sale_actions { height: 1; }
+SimulatorView.short #sim_buy_actions Button,
+SimulatorView.short #sim_sale_actions Button,
+SimulatorView.short #sim_work_panel Button {
+    height: 1;
+    min-height: 1;
+    border: none;
+    padding: 0 1;
+}
+SimulatorView.short #sim_offer_info,
+SimulatorView.short #sim_sale_info,
+SimulatorView.short #sim_feedback { height: 1; min-height: 1; max-height: 1; }
+SimulatorView.short #sim_offer_info,
+SimulatorView.short #sim_sale_info,
+SimulatorView.short #sim_feedback { text-wrap: nowrap; text-overflow: ellipsis; }
+SimulatorView.short #sim_opening_layout,
+SimulatorView.short #sim_collection_layout { height: 12; min-height: 12; }
+SimulatorView.short #sim_opened_art,
+SimulatorView.short #sim_collection_art,
+SimulatorView.short #sim_opened_list { height: 12; min-height: 12; }
+SimulatorView.short.narrow #sim_opening_layout,
+SimulatorView.short.narrow #sim_collection_layout { height: 23; min-height: 23; }
+SimulatorView.short.narrow #sim_opened_list,
+SimulatorView.short.narrow #sim_collection { height: 10; min-height: 0; }
+SimulatorView.short #sim_work_panel { padding: 0 1; }
+SimulatorView.short #sim_work_title,
+SimulatorView.short #sim_work_info,
+SimulatorView.short #sim_work_stats,
+SimulatorView.short #sim_work_tip,
+SimulatorView.short #sim_work_panel Button { margin-bottom: 0; }
+
+SimulatorCardScreen {
+    align: center middle;
+    background: #020808 90%;
+}
+SimulatorCardScreen #sim_card_dialog {
+    height: 100%;
+    width: 100%;
+    max-width: 140;
+    padding: 0 1;
+    border: round #826c42;
+    background: #060e12;
+    color: #e3eaf3;
+    align: center top;
+}
+SimulatorCardScreen #sim_card_title {
+    height: 1;
+    width: 1fr;
+    color: #e7bd70;
+    text-style: bold;
+    content-align: center middle;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+SimulatorCardScreen #sim_card_meta {
+    height: auto;
+    min-height: 1;
+    max-height: 2;
+    width: 1fr;
+    color: #aab3be;
+    content-align: center middle;
+}
+SimulatorCardScreen #sim_card_image {
+    height: 1fr;
+    width: 1fr;
+    min-height: 1;
+    align: center middle;
+    overflow: hidden hidden;
+    background: #111d23;
+}
+SimulatorCardScreen #sim_card_image > RemoteImage {
+    height: 1fr;
+    width: 1fr;
+}
+SimulatorCardScreen #sim_card_image > Label {
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+    color: #8795a8;
+}
+SimulatorCardScreen #sim_card_close {
+    height: 3;
+    width: 1fr;
+    min-width: 0;
+    border: tall transparent;
+    padding: 0 1;
+    background: #162c29;
+    color: #a4e2b7;
+}
+SimulatorCardScreen #sim_card_close:focus,
+SimulatorCardScreen #sim_card_close:hover {
+    border: tall #80d69f;
+    background: #254239;
+    color: #f1f5e9;
+}
+SimulatorCardScreen.short #sim_card_close {
+    height: 1;
+    min-height: 1;
+    border: none;
+}
