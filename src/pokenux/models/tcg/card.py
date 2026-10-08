@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 
 @dataclass
@@ -15,6 +15,7 @@ class Card:
     category: str = ""
     local_id: str = ""
     details_loaded: bool = False
+    variants: dict[str, bool] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Card:
@@ -25,6 +26,12 @@ class Card:
             hp = int(hp) if hp is not None else None
         except TypeError, ValueError:
             hp = None
+        raw_variants = cast(object, data.get("variants"))
+        variants = (
+            cast(dict[object, object], raw_variants)
+            if isinstance(raw_variants, dict)
+            else {}
+        )
         return cls(
             id=card_id,
             name=data["name"],
@@ -43,4 +50,9 @@ class Card:
                 or card_id.rsplit("-", 1)[-1]
             ),
             details_loaded=bool(data.get("details_loaded", "category" in data)),
+            variants={
+                key: value
+                for key, value in variants.items()
+                if isinstance(key, str) and isinstance(value, bool)
+            },
         )
