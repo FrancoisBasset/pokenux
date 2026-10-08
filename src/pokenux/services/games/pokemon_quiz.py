@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.models.pokemon.pokemon_evolution import PokemonEvolution
+from pokenux.models.pokemon.pokemon_type import PokemonType
 from pokenux.services.games.quiz import (
     QuizMode,
     QuizQuestion,
@@ -56,6 +57,34 @@ def _target(pokemon: Pokemon, language: str, detail: str = "") -> QuizTarget:
         aliases=tuple(dict.fromkeys((pokemon.name.fr, pokemon.name.en))),
         detail=detail,
     )
+
+
+def _name_hint(name: str) -> str:
+    letters = [letter for letter in name if letter.isalpha()]
+    if not letters:
+        return f"Le nom contient {len(name)} caractères."
+    length = f"{len(letters)} lettre{'s' if len(letters) > 1 else ''}"
+    if len(letters) < 3:
+        return f"Le nom contient {length}."
+    return f"Le nom commence par {letters[0].upper()} et contient {length}."
+
+
+def _identity_hint(pokemon: Pokemon, language: str) -> str:
+    """Give catalogue clues without printing the name being sought."""
+    clues: list[str] = []
+    if pokemon.generation > 0:
+        clues.append(f"Génération {pokemon.generation}")
+
+    def type_name(item: PokemonType | Mapping[str, object]) -> str:
+        return str(item.get("name", "") if isinstance(item, Mapping) else item.name)
+
+    types = [type_name(item) for item in pokemon.types]
+    if names := list(dict.fromkeys(name for name in types if name.strip())):
+        clues.append(
+            "Type" + ("s" if len(names) > 1 else "") + " : " + " / ".join(names)
+        )
+    clues.append(_name_hint(_name(pokemon, language)))
+    return " · ".join(clues)
 
 
 def _entry_id(entry: PokemonEvolution | Mapping[str, object]) -> int | None:
@@ -187,12 +216,29 @@ def generate_question(
                 by_initial[initial].append(item)
         initial = chooser.choice(sorted(by_initial))
         members = sorted(by_initial[initial], key=lambda item: _name(item, language))
+        generations: dict[int, int] = defaultdict(int)
+        for item in members:
+            if item.generation > 0:
+                generations[item.generation] += 1
         return QuizQuestion(
             mode_id=mode_id,
             prompt=f"Nomme les {len(members)} Pokémon commençant par {initial.upper()}.",
             targets=tuple(_target(item, language) for item in members),
             answer_kind="collection",
-            hint="Saisis un nom à la fois ; chaque Pokémon compte une seule fois.",
+            hint=(
+                "Répartition : "
+                + " · ".join(
+                    f"génération {generation} : {count}"
+                    for generation, count in sorted(generations.items())
+                )
+                if generations
+                else "Longueurs des noms : "
+                + ", ".join(
+                    str(sum(letter.isalpha() for letter in _name(item, language)))
+                    for item in members
+                )
+                + " lettres."
+            ),
         )
 
     if mode_id in ("evolution", "pre_evolution", "evolution_family"):
@@ -219,7 +265,11 @@ def generate_question(
                 prompt=f"Nomme la pré-évolution et les évolutions immédiates de {name}.",
                 targets=tuple(_target(item, language) for item in relatives),
                 answer_kind="collection",
-                hint=f"{len(relatives)} noms à retrouver, un par saisie.",
+                hint=" · ".join(
+                    ("Avant : " if item in parents[selected.pokedex_id] else "Après : ")
+                    + _name_hint(_name(item, language))
+                    for item in relatives
+                ),
             )
         relatives = (
             children[selected.pokedex_id]
@@ -231,7 +281,8 @@ def generate_question(
             mode_id=mode_id,
             prompt=f"Nomme {subject} immédiate de {name}.",
             targets=tuple(_target(item, language) for item in relatives),
-            hint="Une seule réponse suffit." if len(relatives) > 1 else "",
+            hint=("Une possibilité : " if len(relatives) > 1 else "")
+            + _identity_hint(relatives[0], language),
             explanation=" / ".join(_name(item, language) for item in relatives),
         )
 
@@ -280,7 +331,9 @@ def generate_question(
             ),
             answer_kind="order",
             ordering_groups=groups,
-            hint="Saisis les trois noms dans l'ordre, séparés par des virgules.",
+            hint=f"{_name(ordered[0], language)} est plus "
+            + ("petit" if field == "height" else "léger")
+            + f" que {_name(ordered[-1], language)}.",
             explanation=" → ".join(
                 f"{_name(item, language)} ({item.height if field == 'height' else item.weight})"
                 for item in ordered
@@ -305,7 +358,7 @@ def generate_question(
             targets=(_target(selected, language),),
             image_url=_image_url(selected.sprites.regular),
             image_effect=effect,
-            hint="Donne son nom.",
+            hint=_identity_hint(selected, language),
         )
 
     if mode_id == "anagram":
@@ -333,7 +386,7 @@ def generate_question(
                 for item in catalogue
                 if sorted(normalize_answer(_name(item, language))) == sorted(original)
             ),
-            hint="Toutes les lettres du nom sont présentes.",
+            hint=_identity_hint(selected, language),
         )
 
     if mode_id == "missing_letters":
@@ -372,7 +425,8 @@ def generate_question(
                     for index, letter in enumerate(_name(item, language))
                 )
             ),
-            hint=f"{count} lettre{'s' if count > 1 else ''} manquante{'s' if count > 1 else ''}. Saisis le nom complet.",
+            hint=f"{count} lettre{'s' if count > 1 else ''} manquante{'s' if count > 1 else ''}. "
+            + _identity_hint(selected, language),
         )
 
     if mode_id == "fake_name":
@@ -405,7 +459,7 @@ def generate_question(
             mode_id=mode_id,
             prompt=f"« {name} » est-il un faux nom de Pokémon ?",
             targets=(answer,),
-            hint="Saisis oui ou non.",
+            hint="Observe chaque lettre : un nom inventé peut ne différer du vrai que d'une lettre.",
             explanation=f"« {name} » est {'un nom inventé' if fake else 'un vrai nom de Pokémon'}.",
         )
 
@@ -431,7 +485,7 @@ def generate_question(
             mode_id=mode_id,
             prompt=f"Dans quelle génération apparaît {name} ?",
             targets=(QuizTarget(str(generation), f"Génération {generation}", aliases),),
-            hint="Donne le numéro de génération.",
+            hint=f"Son numéro dans le Pokédex national est #{selected.pokedex_id:04d}.",
         )
     if mode_id == "name_to_number":
         number = selected.pokedex_id
@@ -451,11 +505,12 @@ def generate_question(
                     ),
                 ),
             ),
-            hint="Saisis son numéro national.",
+            hint=f"Son numéro se situe entre #{((number - 1) // 50) * 50 + 1:04d} "
+            + f"et #{((number - 1) // 50 + 1) * 50:04d}.",
         )
     return QuizQuestion(
         mode_id=mode_id,
         prompt=f"Quel Pokémon porte le numéro #{selected.pokedex_id:04d} dans le Pokédex national ?",
         targets=(_target(selected, language),),
-        hint="Donne son nom.",
+        hint=_identity_hint(selected, language),
     )

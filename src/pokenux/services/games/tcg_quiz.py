@@ -118,6 +118,33 @@ def _card_reference(card: Card, card_set: Set) -> str:
     return f"{card.name} — {card_set.name}, carte n° {local_id}"
 
 
+def _name_hint(name: str) -> str:
+    letters = [letter for letter in name if letter.isalpha()]
+    words = name.split()
+    clues = [f"{len(words)} mot{'s' if len(words) > 1 else ''}"]
+    if len(letters) > 2:
+        clues.append(f"commence par {letters[0].upper()}")
+    clues.append(f"{len(letters)} lettre{'s' if len(letters) > 1 else ''}")
+    return " · ".join(clues) + "."
+
+
+def _card_name_hint(card: Card) -> str:
+    clues = [_name_hint(card.name)]
+    if types := list(dict.fromkeys(value for value in card.types if value.strip())):
+        clues.append(
+            "Type" + ("s" if len(types) > 1 else "") + " : " + " / ".join(types)
+        )
+    if card.hp is not None:
+        clues.append(f"{card.hp} PV")
+    return " · ".join(clues)
+
+
+def _release_hint(name: str, release_date: str) -> str:
+    year = release_date[:4]
+    release = f"Parution en {year} · " if len(year) == 4 and year.isdecimal() else ""
+    return release + _name_hint(name)
+
+
 def _shuffle_name(name: str, rng: random.Random) -> str:
     letters = list(normalize_answer(name))
     initial = letters.copy()
@@ -157,7 +184,7 @@ def generate_question(
             mode_id=mode_id,
             prompt=f"À quelle série appartient l’extension « {card_set.name} » ?",
             targets=(QuizTarget(serie.id, serie.name, (serie.name, serie.id)),),
-            hint="Saisis le nom de la série.",
+            hint=_release_hint(serie.name, serie.release_date),
             explanation=f"{card_set.name} appartient à la série {serie.name}.",
         )
 
@@ -204,7 +231,7 @@ def generate_question(
             targets=(QuizTarget(card.id, card.name, (card.name,)),),
             image_url=card_image_url(card.image),
             image_effect="crop",
-            hint="Saisis le nom complet de la carte, y compris son éventuel suffixe.",
+            hint=_card_name_hint(card),
             explanation=reference,
         )
     if mode_id == "tcg_set":
@@ -223,7 +250,7 @@ def generate_question(
                 ),
             ),
             image_url=card_image_url(card.image),
-            hint="Saisis le nom de l’extension ou son abréviation officielle.",
+            hint=_release_hint(card_set.name, card_set.release_date),
             explanation=reference,
         )
     if mode_id == "tcg_anagram":
@@ -231,16 +258,17 @@ def generate_question(
             mode_id=mode_id,
             prompt=f"Retrouve le nom de cette carte : {_shuffle_name(card.name, randomizer)}",
             targets=(QuizTarget(card.id, card.name, (card.name,)),),
-            hint="Toutes les lettres sont présentes. Les espaces ne comptent pas.",
+            hint=_card_name_hint(card),
             explanation=reference,
         )
     if mode_id == "tcg_hp":
+        assert card.hp is not None
         hp = str(card.hp)
         return QuizQuestion(
             mode_id=mode_id,
             prompt=f"Combien de PV possède {reference} ?",
             targets=(QuizTarget(card.id, hp, (hp, f"{hp} PV", f"{hp} HP")),),
-            hint="Saisis le nombre de points de vie.",
+            hint=f"Entre {(card.hp // 50) * 50} et {(card.hp // 50) * 50 + 49} PV.",
             explanation=f"{reference} possède {hp} PV.",
         )
     if mode_id == "tcg_type":
@@ -255,7 +283,12 @@ def generate_question(
                 for card_type in types
             ),
             answer_kind="collection",
-            hint="Saisis un type à la fois ou sépare les types par des virgules.",
+            hint=f"{len(types)} type{'s' if len(types) > 1 else ''} à retrouver. "
+            + "Initiale"
+            + ("s" if len(types) > 1 else "")
+            + " : "
+            + ", ".join(card_type.strip()[0].upper() for card_type in types)
+            + ".",
             explanation=f"{reference} : {', '.join(types)}.",
         )
     if mode_id == "tcg_illustrator":
@@ -263,7 +296,7 @@ def generate_question(
             mode_id=mode_id,
             prompt=f"Qui a illustré {reference} ?",
             targets=(QuizTarget(card.id, card.illustrator, (card.illustrator,)),),
-            hint="Saisis le nom de l’illustrateur.",
+            hint=_name_hint(card.illustrator),
             explanation=f"{reference} a été illustrée par {card.illustrator}.",
         )
     return QuizQuestion(
@@ -272,6 +305,6 @@ def generate_question(
         targets=(
             QuizTarget(card.id, card.rarity, _aliases(card.rarity, _RARITY_ALIASES)),
         ),
-        hint="Saisis la rareté de la carte.",
+        hint=_name_hint(card.rarity),
         explanation=f"{reference} : {card.rarity}.",
     )

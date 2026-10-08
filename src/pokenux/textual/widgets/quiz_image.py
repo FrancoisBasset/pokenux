@@ -1,5 +1,6 @@
-"""Quiz artwork, transformed in the downloader's worker before it is shown."""
+"""Quiz artwork, hidden until an explicit reveal after the question."""
 
+from asyncio import Lock
 from typing import override
 
 from PIL import Image as PILImage
@@ -94,20 +95,58 @@ class _QuizArtwork(RemoteImage):
     def __init__(self, url: str | None, effect: str, placeholder: str) -> None:
         super().__init__(url, placeholder=placeholder)
         self.effect: str = effect
+        self._original_image: PILImage.Image | None = None
+        self._reveal_requested: bool = False
+        self._displaying_original: bool = False
+        self._ready_sent: bool = False
+        self._render_lock: Lock = Lock()
 
     @override
     def _prepare_image(self, image: PILImage.Image) -> PILImage.Image:
-        return transform_quiz_image(image, self.effect)
+        # The downloader owns its decoded image. Keep an independent, oriented
+        # copy so revealing never downloads again or changes the shared cache.
+        self._original_image = transform_quiz_image(image, "normal")
+        return transform_quiz_image(self._original_image, self.effect)
+
+    async def reveal(self) -> None:
+        """Show the retained original, or request it when loading finishes."""
+        self._reveal_requested = True
+        async with self._render_lock:
+            if (
+                self._original_image is None
+                or self._displaying_original
+                or self._unmounted
+                or not self.is_attached
+            ):
+                return
+            await super()._show_image(RemoteImage.Loaded(self._original_image))
+            self._displaying_original = bool(self.query(Image))
 
     @on(RemoteImage.Loaded)
     async def _show_quiz_image(self, message: RemoteImage.Loaded) -> None:
         _ = message.stop()
         _ = message.prevent_default()
-        if self._unmounted or not self.is_attached:
-            return
-        await super()._show_image(message)
-        if not self._unmounted and self.is_attached and self.query(Image):
-            _ = self.post_message(_ArtworkReady())
+        # A reveal can arrive while the transformed message is waiting to be
+        # handled. Serialize mounts and never let that stale message re-hide it.
+        async with self._render_lock:
+            if self._unmounted or not self.is_attached:
+                return
+            show_original = self._reveal_requested and self._original_image is not None
+            if not self._displaying_original:
+                if show_original and self._original_image is not None:
+                    message = RemoteImage.Loaded(self._original_image)
+                await super()._show_image(message)
+                self._displaying_original = (
+                    show_original or self.effect == "normal"
+                ) and bool(self.query(Image))
+            if (
+                not self._unmounted
+                and self.is_attached
+                and self.query(Image)
+                and not self._ready_sent
+            ):
+                self._ready_sent = True
+                _ = self.post_message(_ArtworkReady())
 
 
 class QuizImage(Container):
@@ -149,6 +188,17 @@ class QuizImage(Container):
     @override
     def compose(self) -> ComposeResult:
         yield _QuizArtwork(self.url, self.effect, self.placeholder)
+
+    async def reveal(self) -> None:
+        """Reveal full artwork once; an in-flight download uses the same bytes.
+
+        Call after completing a question. Repeated calls and calls on a removed
+        widget are harmless, and revealing does not replay the Loaded signal.
+        """
+        if not self.is_attached:
+            return
+        for artwork in self.query(_QuizArtwork):
+            await artwork.reveal()
 
     @on(_ArtworkReady)
     def _artwork_ready(self, message: _ArtworkReady) -> None:

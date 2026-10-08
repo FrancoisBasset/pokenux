@@ -76,10 +76,12 @@ reads installed files from `~/.local/share/pokenux/assets/data`.
 
 ### Quizzes
 
-Open **Quiz** from **Accueil**, choose **Pokédex** or **TCG**, then a game.
-Sessions contain 5, 10 or 20 questions, or run indefinitely for practice.
-Every answer is typed: case, accents, spaces, hyphens and punctuation are
-ignored. Pokémon names are accepted in French and English.
+Open **Quiz** from **Accueil** and jump into **Défi surprise** for a mix of
+Pokédex challenges, or choose a game from the **Pokédex** and **Cartes TCG** tabs.
+Sessions contain 5, 10 or 20 questions, or run indefinitely for practice, with
+no timer. A generation selector limits the Pokémon catalogue for the session.
+Case, accents, spaces, hyphens and punctuation are ignored. Pokémon names are
+accepted in French and English.
 
 * Pokédex: list every Pokémon with a given initial, solve anagrams, complete
   names with a variable or chosen number of missing letters, name immediate
@@ -91,14 +93,22 @@ ignored. Pokémon names are accepted in French and English.
   or series, solve card-name anagrams, and give HP, types, illustrator or rarity
   for a specific card edition.
 
-Use **Enter** to submit, **Indice** for a hint, **Solution** to reveal an answer,
-and **Escape** to return to the menu. Lists can be entered one name at a time or
-separated by commas; rankings are entered in full, smallest/lightest first.
-The session tracks successful questions, mistakes and hints, then displays a
-result and a replay action. Revealing or skipping a playable question does not
-award a point.
+Use **Enter** to submit and continue after a result, **F1** for a hint, **F2**
+to skip, **Solution** to reveal an answer, and **Escape** to return to the menu.
+Lists can be entered one name at a time or separated by commas. For rankings,
+click the names in order, smallest/lightest first, or type the complete order;
+**Recommencer l’ordre** clears the selection.
 
-Image games download artwork in the background. An unavailable image can be
+A correct answer earns 100 points, minus 25 per mistake (minimum 25); using a
+hint halves that award. Consecutive answers without mistakes or hints earn an
+extra 20 points per step, up to a 100-point bonus. Revealing or skipping a
+playable question earns no points and breaks the streak. The arena shows the
+score, streak and session progress, then a rank, best streak and answers to
+review. **Bilan** ends any session, including free practice, and counts only
+completed questions. Replay starts a fresh session with the same settings.
+
+Image games download artwork in the background and reveal the original image
+after the answer, using the same downloaded bytes. An unavailable image can be
 retried or skipped without affecting the score. Card metadata is fetched and
 cached only when needed if the installed catalogue contains summaries; the
 other text games work from the local catalogue.
