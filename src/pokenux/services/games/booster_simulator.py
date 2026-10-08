@@ -18,6 +18,7 @@ import time
 from typing import cast, final
 from urllib.parse import urlsplit, urlunsplit
 
+from pokenux.services.localization import language, text
 from pokenux.models.tcg.card import Card
 from pokenux.models.tcg.serie import Serie
 from pokenux.models.tcg.set import Set
@@ -42,7 +43,24 @@ def format_euros(cents: int) -> str:
     sign = "−" if cents < 0 else ""
     euros, remainder = divmod(abs(cents), 100)
     whole = f"{euros:,}".replace(",", "\u202f")
-    return f"{sign}{whole},{remainder:02d} €"
+    return (
+        f"{sign}{whole},{remainder:02d} €"
+        if language() == "fr"
+        else f"€{sign}{euros:,}.{remainder:02d}"
+    )
+
+
+def finish_label(finish: str) -> str:
+    """Translate presentation only; persisted finish keys remain unchanged."""
+    return {
+        "Normale": text("Normale", "Normal"),
+        "Reverse": "Reverse",
+        "Holographique": text("Holographique", "Holographic"),
+    }.get(finish, finish)
+
+
+def rarity_label(rarity: str) -> str:
+    return text("Non vérifiée", "Unverified") if rarity == "Non vérifiée" else rarity
 
 
 @dataclass(frozen=True)
@@ -148,8 +166,8 @@ def _image_url(image: str) -> str:
 class SimulatorService:
     """Serialize purchases, work, upgrades and sales in SQLite transactions.
 
-    Currency is always integer cents. Names and artwork already owned persist
-    across catalogue languages. Normal, reverse and holographic copies have
+    Currency is always integer cents. Saved card snapshots stay unchanged while
+    display names follow the current catalogue. Normal, reverse and holographic copies have
     distinct sale keys but share a canonical source_card_id.
     """
 
@@ -172,28 +190,7 @@ class SimulatorService:
         self._lock = RLock()
         self._closed = False
         self._migration_notice = ""
-        self._catalogue: dict[str, _Catalogue] = {}
-        for serie in series:
-            for card_set in serie.sets:
-                if not card_set.id or not supports_booster(card_set, serie.id):
-                    continue
-                cards = tuple(
-                    {
-                        card.id: card
-                        for card in card_set.cards
-                        if card.id and card.name.strip() and card.set_id == card_set.id
-                    }.values()
-                )
-                if cards:
-                    _ = self._catalogue.setdefault(
-                        card_set.id,
-                        _Catalogue(
-                            replace(card_set, serie_id=serie.id),
-                            serie.name,
-                            rules_for_set(card_set, serie.id),
-                            cards,
-                        ),
-                    )
+        self._catalogue = self._make_catalogue(series)
         self._offers: dict[str, BoosterOffer] = {}
         try:
             if isinstance(self.db_path, Path):
@@ -207,13 +204,80 @@ class SimulatorService:
             if hasattr(self, "_connection"):
                 self._connection.close()
             raise SimulatorError(
-                "Impossible d’ouvrir la sauvegarde du simulateur."
+                text(
+                    "Impossible d’ouvrir la sauvegarde du simulateur.",
+                    "Could not open the simulator save.",
+                )
             ) from error
+
+    @staticmethod
+    def _make_catalogue(series: list[Serie]) -> dict[str, _Catalogue]:
+        catalogue: dict[str, _Catalogue] = {}
+        for serie in series:
+            for card_set in serie.sets:
+                if not card_set.id or not supports_booster(card_set, serie.id):
+                    continue
+                cards = tuple(
+                    {
+                        card.id: card
+                        for card in card_set.cards
+                        if card.id and card.name.strip() and card.set_id == card_set.id
+                    }.values()
+                )
+                if cards:
+                    _ = catalogue.setdefault(
+                        card_set.id,
+                        _Catalogue(
+                            replace(card_set, serie_id=serie.id),
+                            serie.name,
+                            rules_for_set(card_set, serie.id),
+                            cards,
+                        ),
+                    )
+        return catalogue
+
+    def set_catalogue(self, series: list[Serie]) -> None:
+        """Swap display/catalogue data without replacing the wallet or inventory."""
+        updated = self._make_catalogue(series)
+        previous, previous_offers = self._catalogue, self._offers
+        try:
+            with self._transaction() as connection:
+                self._catalogue = updated
+                self._offers = {}
+                self._refresh_catalogue_offers(connection)
+        except Exception:
+            self._catalogue, self._offers = previous, previous_offers
+            raise
+
+    def display_card(self, owned: OwnedCard) -> OwnedCard:
+        """Use the current catalogue's names while retaining saved identity/value."""
+        entry = self._catalogue.get(owned.set_id)
+        if entry is None:
+            return owned
+        source_id = owned.source_card_id or owned.card_id.split("::", 1)[0]
+        card = next((card for card in entry.cards if card.id == source_id), None)
+        if card is None:
+            return owned
+        return replace(
+            owned,
+            name=card.name,
+            set_name=entry.card_set.name,
+            image=_image_url(card.image) or owned.image,
+            rarity=card.rarity or owned.rarity,
+        )
 
     @property
     def extensions(self) -> list[BoosterOffer]:
         return sorted(
-            self._offers.values(), key=lambda offer: (offer.price, offer.set_id)
+            (
+                replace(
+                    offer,
+                    composition=self._catalogue[offer.set_id].rules.composition,
+                    price_note=text("Prix estimatif du jeu", "Estimated game price"),
+                )
+                for offer in self._offers.values()
+            ),
+            key=lambda offer: (offer.price, offer.set_id),
         )
 
     @contextmanager
@@ -222,7 +286,9 @@ class SimulatorService:
     ) -> Generator[sqlite3.Connection, None, None]:
         with self._lock:
             if self._closed:
-                raise SimulatorError("Cette sauvegarde est fermée.")
+                raise SimulatorError(
+                    text("Cette sauvegarde est fermée.", "This save is closed.")
+                )
             try:
                 _ = self._connection.execute(
                     "BEGIN" if read_only else "BEGIN IMMEDIATE"
@@ -234,7 +300,10 @@ class SimulatorService:
                     _ = self._connection.execute("ROLLBACK")
                 if isinstance(error, sqlite3.Error):
                     raise SimulatorError(
-                        "La sauvegarde est indisponible. Réessaie."
+                        text(
+                            "La sauvegarde est indisponible. Réessaie.",
+                            "The save is unavailable. Please try again.",
+                        )
                     ) from error
                 raise
 
@@ -243,7 +312,10 @@ class SimulatorService:
             version = cast(int, connection.execute("PRAGMA user_version").fetchone()[0])
             if version > _SCHEMA_VERSION:
                 raise SimulatorError(
-                    "Cette sauvegarde nécessite une version plus récente."
+                    text(
+                        "Cette sauvegarde nécessite une version plus récente.",
+                        "This save requires a newer application version.",
+                    )
                 )
             existed = (
                 connection.execute(
@@ -329,33 +401,44 @@ class SimulatorService:
             )
             if notice is not None:
                 self._migration_notice = cast(str, notice["value"])
-            for set_id, entry in self._catalogue.items():
-                price = estimated_price(entry.card_set, entry.card_set.serie_id)
-                _ = connection.execute(
-                    "INSERT INTO simulator_prices (set_id, price) VALUES (?, ?) ON CONFLICT(set_id) DO NOTHING",
-                    (set_id, price),
-                )
-                saved = cast(
-                    sqlite3.Row,
-                    connection.execute(
-                        "SELECT price FROM simulator_prices WHERE set_id = ?", (set_id,)
-                    ).fetchone(),
-                )
-                self._offers[set_id] = BoosterOffer(
-                    set_id,
-                    entry.card_set.name,
-                    entry.serie_name,
-                    cast(int, saved["price"]),
-                    len(entry.cards),
-                    entry.rules.card_count,
-                    entry.rules.composition,
-                )
+            self._refresh_catalogue_offers(connection, revalue_legacy=True)
+
+    def _refresh_catalogue_offers(
+        self, connection: sqlite3.Connection, *, revalue_legacy: bool = False
+    ) -> None:
+        for set_id, entry in self._catalogue.items():
+            price = estimated_price(entry.card_set, entry.card_set.serie_id)
+            _ = connection.execute(
+                "INSERT INTO simulator_prices (set_id, price) VALUES (?, ?) ON CONFLICT(set_id) DO NOTHING",
+                (set_id, price),
+            )
+            saved = cast(
+                sqlite3.Row,
+                connection.execute(
+                    "SELECT price FROM simulator_prices WHERE set_id = ?", (set_id,)
+                ).fetchone(),
+            )
+            self._offers[set_id] = BoosterOffer(
+                set_id,
+                entry.card_set.name,
+                entry.serie_name,
+                cast(int, saved["price"]),
+                len(entry.cards),
+                entry.rules.card_count,
+                entry.rules.composition,
+            )
+            if revalue_legacy:
                 self._revalue_legacy(connection, set_id)
 
     def _now(self) -> float:
         value = float(self._clock())
         if not math.isfinite(value) or value < 0:
-            raise SimulatorError("L’horloge du simulateur est indisponible.")
+            raise SimulatorError(
+                text(
+                    "L’horloge du simulateur est indisponible.",
+                    "The simulator clock is unavailable.",
+                )
+            )
         return value
 
     def _state(
@@ -389,7 +472,12 @@ class SimulatorService:
                 cast(float, account["work_next_at"])
                 - (self._now() if now is None else now),
             ),
-            migration_notice=self._migration_notice,
+            migration_notice=text(
+                _MIGRATION_NOTICE,
+                "Old save converted: 1 P$ = €0.01. Previous rarities need verification.",
+            )
+            if self._migration_notice == _MIGRATION_NOTICE
+            else self._migration_notice,
         )
 
     def snapshot(self) -> SimulatorState:
@@ -402,7 +490,10 @@ class SimulatorService:
             state = self._state(connection, now=now)
             if state.work_ready_in > 0:
                 raise SimulatorError(
-                    f"Travail trop rapide : attends encore {state.work_ready_in:.1f} s."
+                    text(
+                        f"Travail trop rapide : attends encore {state.work_ready_in:.1f} s.",
+                        f"Too soon to work: wait another {state.work_ready_in:.1f} s.",
+                    )
                 )
             _ = connection.execute(
                 "UPDATE simulator_account SET balance = balance + ?, clicks = clicks + 1, work_next_at = ? WHERE id = 1",
@@ -414,10 +505,18 @@ class SimulatorService:
         with self._transaction() as connection:
             state = self._state(connection)
             if state.work_level >= _MAX_WORK_LEVEL:
-                raise SimulatorError("Tu as atteint le niveau maximum de formation.")
+                raise SimulatorError(
+                    text(
+                        "Tu as atteint le niveau maximum de formation.",
+                        "You have reached the maximum training level.",
+                    )
+                )
             if state.balance < state.upgrade_cost:
                 raise SimulatorError(
-                    f"Il te manque {format_euros(state.upgrade_cost - state.balance)} pour la formation."
+                    text(
+                        f"Il te manque {format_euros(state.upgrade_cost - state.balance)} pour la formation.",
+                        f"You need {format_euros(state.upgrade_cost - state.balance)} more for training.",
+                    )
                 )
             _ = connection.execute(
                 "UPDATE simulator_account SET balance = balance - ?, work_level = work_level + 1 WHERE id = 1",
@@ -429,7 +528,12 @@ class SimulatorService:
         with self._lock:
             entry = self._catalogue.get(set_id)
             if entry is None:
-                raise SimulatorError("Cette extension n’est pas disponible.")
+                raise SimulatorError(
+                    text(
+                        "Cette extension n’est pas disponible.",
+                        "This set is unavailable.",
+                    )
+                )
             return [
                 replace(card, variants=dict(card.variants), types=list(card.types))
                 for card in entry.cards
@@ -439,14 +543,22 @@ class SimulatorService:
         with self._lock:
             previous = self._catalogue.get(set_id)
             if previous is None:
-                raise SimulatorError("Cette extension n’est pas disponible.")
+                raise SimulatorError(
+                    text(
+                        "Cette extension n’est pas disponible.",
+                        "This set is unavailable.",
+                    )
+                )
             replacements = {card.id: card for card in cards}
             original_ids = {card.id for card in previous.cards}
             if any(
                 card.set_id != set_id or card.id not in original_ids for card in cards
             ):
                 raise SimulatorError(
-                    "Les métadonnées ne correspondent pas à cette extension."
+                    text(
+                        "Les métadonnées ne correspondent pas à cette extension.",
+                        "The metadata does not match this set.",
+                    )
                 )
             self._catalogue[set_id] = replace(
                 previous,
@@ -520,7 +632,10 @@ class SimulatorService:
             group = rarity_group(card)
             if not card.rarity.strip() or group is None:
                 raise SimulatorError(
-                    "Les raretés officielles de cette extension doivent être chargées avant l’achat."
+                    text(
+                        "Les raretés officielles de cette extension doivent être chargées avant l’achat.",
+                        "Load this set’s official rarities before buying a booster.",
+                    )
                 )
             pull = self._normal_pull(card, entry.rules)
             if pull is None:
@@ -530,7 +645,10 @@ class SimulatorService:
                     and not card.variants
                 ):
                     raise SimulatorError(
-                        "Les finitions officielles de cette extension ancienne doivent être chargées."
+                        text(
+                            "Les finitions officielles de cette extension ancienne doivent être chargées.",
+                            "Load this vintage set’s official finishes first.",
+                        )
                     )
                 continue
             if group == "rare" and pull.finish == "Holographique":
@@ -555,7 +673,10 @@ class SimulatorService:
                 or len(eligible) - len(pikachu) < entry.rules.special_foil - 1
             ):
                 raise SimulatorError(
-                    "Ce booster anniversaire nécessite un Pikachu et quatre autres cartes distinctes."
+                    text(
+                        "Ce booster anniversaire nécessite un Pikachu et quatre autres cartes distinctes.",
+                        "This anniversary booster requires a Pikachu and four other distinct cards.",
+                    )
                 )
             return pools
         if entry.rules.special_foil:
@@ -570,7 +691,10 @@ class SimulatorService:
                 pools[group] for group in _PREMIUM_GROUPS
             ):
                 raise SimulatorError(
-                    "Cette extension spéciale n’a pas de profil de booster compatible."
+                    text(
+                        "Cette extension spéciale n’a pas de profil de booster compatible.",
+                        "This special set has no compatible booster profile.",
+                    )
                 )
             return pools
         common_required = entry.rules.common
@@ -582,12 +706,18 @@ class SimulatorService:
             or not (pools["rare"] or pools["holo"])
         ):
             raise SimulatorError(
-                "Cette extension ne contient pas assez de cartes pour respecter les emplacements du booster."
+                text(
+                    "Cette extension ne contient pas assez de cartes pour respecter les emplacements du booster.",
+                    "This set has too few cards to fill the required booster slots.",
+                )
             )
         reverse = [card for card in entry.cards if self._reverse_pull(card) is not None]
         if len(reverse) < entry.rules.reverse:
             raise SimulatorError(
-                "Les finitions Reverse disponibles sont insuffisantes pour ce booster."
+                text(
+                    "Les finitions Reverse disponibles sont insuffisantes pour ce booster.",
+                    "There are not enough available Reverse finishes for this booster.",
+                )
             )
         return pools
 
@@ -613,7 +743,10 @@ class SimulatorService:
         ]
         if not available:
             raise SimulatorError(
-                "Le booster ne peut pas être complété sans doublon de finition."
+                text(
+                    "Le booster ne peut pas être complété sans doublon de finition.",
+                    "This booster cannot be completed without a duplicate finish.",
+                )
             )
         pool = self._rng.choices(
             [pool for pool, _ in available],
@@ -773,7 +906,12 @@ class SimulatorService:
                 source_id,
             )
         except (ValueError, TypeError, KeyError) as error:
-            raise SimulatorError("La collection sauvegardée est illisible.") from error
+            raise SimulatorError(
+                text(
+                    "La collection sauvegardée est illisible.",
+                    "The saved collection cannot be read.",
+                )
+            ) from error
 
     def _revalue_legacy(self, connection: sqlite3.Connection, set_id: str) -> None:
         entry = self._catalogue[set_id]
@@ -785,7 +923,12 @@ class SimulatorService:
         for row in rows:
             raw = cast(object, json.loads(cast(str, row["payload"])))
             if not isinstance(raw, dict):
-                raise SimulatorError("La collection sauvegardée est illisible.")
+                raise SimulatorError(
+                    text(
+                        "La collection sauvegardée est illisible.",
+                        "The saved collection cannot be read.",
+                    )
+                )
             data = cast(dict[str, object], raw)
             if not data.get("legacy") or data.get("set_id") != set_id:
                 continue
@@ -824,7 +967,11 @@ class SimulatorService:
     def buy_and_open(self, set_id: str) -> BoosterOpening:
         offer = self._offers.get(set_id)
         if offer is None:
-            raise SimulatorError("Cette extension n’est pas disponible.")
+            raise SimulatorError(
+                text(
+                    "Cette extension n’est pas disponible.", "This set is unavailable."
+                )
+            )
         with self._lock:
             rng_state = self._rng.getstate()
             try:
@@ -833,7 +980,10 @@ class SimulatorService:
                     state = self._state(connection)
                     if state.balance < offer.price:
                         raise SimulatorError(
-                            f"Fonds insuffisants : il te manque {format_euros(offer.price - state.balance)}."
+                            text(
+                                f"Fonds insuffisants : il te manque {format_euros(offer.price - state.balance)}.",
+                                f"Insufficient funds: you need {format_euros(offer.price - state.balance)} more.",
+                            )
                         )
                     pulls = self._draw(offer)
                     _ = connection.execute(
@@ -883,7 +1033,7 @@ class SimulatorService:
                 connection.execute("SELECT * FROM simulator_inventory").fetchall(),
             )
             return sorted(
-                (self._owned(row) for row in rows),
+                (self.display_card(self._owned(row)) for row in rows),
                 key=lambda card: (card.set_name, card.name, card.card_id),
             )
 
@@ -895,7 +1045,10 @@ class SimulatorService:
             or candidate < 1
         ):
             raise SimulatorError(
-                "La quantité à vendre doit être un entier supérieur à zéro."
+                text(
+                    "La quantité à vendre doit être un entier supérieur à zéro.",
+                    "The sale quantity must be a positive whole number.",
+                )
             )
         with self._transaction() as connection:
             row = cast(
@@ -906,7 +1059,10 @@ class SimulatorService:
             )
             if row is None or cast(int, row["quantity"]) < candidate:
                 raise SimulatorError(
-                    "Tu ne possèdes pas assez d’exemplaires de cette carte."
+                    text(
+                        "Tu ne possèdes pas assez d’exemplaires de cette carte.",
+                        "You do not own enough copies of this card.",
+                    )
                 )
             gain = cast(int, row["value"]) * candidate
             if cast(int, row["quantity"]) == candidate:

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal
 
+from pokenux.services.localization import text
 from pokenux.models.tcg.card import Card
 from pokenux.models.tcg.set import Set
 from pokenux.services.games.quiz import normalize_answer
@@ -47,17 +48,39 @@ class BoosterRules:
     @property
     def composition(self) -> str:
         if self.era == "anniversary":
-            return "5 cartes holographiques dont 1 Pikachu garanti · répartition estimée · Énergie bonus non simulée"
+            return text(
+                "5 cartes holographiques dont 1 Pikachu garanti · répartition estimée · Énergie bonus non simulée",
+                "5 holographic cards including 1 guaranteed Pikachu · estimated distribution · bonus Energy not simulated",
+            )
         if self.era == "anniversary_classic":
-            return "3 cartes holographiques de la Collection Classique · répartition estimée"
+            return text(
+                "3 cartes holographiques de la Collection Classique · répartition estimée",
+                "3 holographic Classic Collection cards · estimated distribution",
+            )
         if self.special_foil:
-            return f"{self.special_foil} cartes holographiques, répartition simplifiée estimée"
-        parts = [f"{self.common} communes", f"{self.uncommon} peu communes"]
+            return text(
+                f"{self.special_foil} cartes holographiques, répartition simplifiée estimée",
+                f"{self.special_foil} holographic cards, simplified estimated distribution",
+            )
+        parts = [
+            text(f"{self.common} communes", f"{self.common} common"),
+            text(f"{self.uncommon} peu communes", f"{self.uncommon} uncommon"),
+        ]
         if self.energy:
-            parts.append(f"{self.energy} énergies (ou communes si non identifiées)")
+            parts.append(
+                text(
+                    f"{self.energy} énergies (ou communes si non identifiées)",
+                    f"{self.energy} Energy (or common if unidentified)",
+                )
+            )
         if self.reverse:
-            parts.append(f"{self.reverse} emplacements Reverse")
-        parts.append("1 rare ou mieux")
+            parts.append(
+                text(
+                    f"{self.reverse} emplacements Reverse",
+                    f"{self.reverse} Reverse slots",
+                )
+            )
+        parts.append(text("1 rare ou mieux", "1 rare or better"))
         return " · ".join(parts)
 
 

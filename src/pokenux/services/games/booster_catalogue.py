@@ -17,6 +17,7 @@ from urllib.parse import quote
 
 import requests
 
+from pokenux.services.localization import text
 from pokenux.models.tcg.card import Card
 from pokenux.services.api.tcgdex import TCGdexError
 
@@ -43,7 +44,7 @@ def _variants_complete(variants: dict[str, bool]) -> bool:
 
 def _check_cancelled(cancelled: Callable[[], bool] | None) -> None:
     if cancelled is not None and cancelled():
-        raise BoosterCatalogueError("Chargement annulé.")
+        raise BoosterCatalogueError(text("Chargement annulé.", "Loading cancelled."))
 
 
 def _fetch(
@@ -60,19 +61,30 @@ def _fetch(
         return cast(object, response.json())
     except (requests.RequestException, ValueError) as error:
         raise BoosterCatalogueError(
-            "TCGdex est indisponible. Réessaie pour charger les raretés officielles."
+            text(
+                "TCGdex est indisponible. Réessaie pour charger les raretés officielles.",
+                "TCGdex is unavailable. Retry to load official rarities.",
+            )
         ) from error
 
 
 def _labels(language: str, endpoint: str) -> list[str]:
     result = _fetch(language, endpoint)
     if not isinstance(result, list) or not result:
-        raise BoosterCatalogueError("TCGdex a renvoyé une liste de valeurs invalide.")
+        raise BoosterCatalogueError(
+            text(
+                "TCGdex a renvoyé une liste de valeurs invalide.",
+                "TCGdex returned an invalid list of values.",
+            )
+        )
     values: list[str] = []
     for item in cast(list[object], result):
         if not isinstance(item, str) or not item.strip():
             raise BoosterCatalogueError(
-                "TCGdex a renvoyé une liste de valeurs invalide."
+                text(
+                    "TCGdex a renvoyé une liste de valeurs invalide.",
+                    "TCGdex returned an invalid list of values.",
+                )
             )
         if item not in values:
             values.append(item)
@@ -223,19 +235,35 @@ def _classify(
         )
         if not isinstance(response, list):
             raise BoosterCatalogueError(
-                "TCGdex a renvoyé une liste de cartes invalide."
+                text(
+                    "TCGdex a renvoyé une liste de cartes invalide.",
+                    "TCGdex returned an invalid list of cards.",
+                )
             )
         for item in cast(list[object], response):
             if not isinstance(item, dict):
-                raise BoosterCatalogueError("TCGdex a renvoyé une carte invalide.")
+                raise BoosterCatalogueError(
+                    text(
+                        "TCGdex a renvoyé une carte invalide.",
+                        "TCGdex returned an invalid card.",
+                    )
+                )
             card_id = cast(dict[str, object], item).get("id")
             if not isinstance(card_id, str) or not card_id:
-                raise BoosterCatalogueError("TCGdex a renvoyé une carte invalide.")
+                raise BoosterCatalogueError(
+                    text(
+                        "TCGdex a renvoyé une carte invalide.",
+                        "TCGdex returned an invalid card.",
+                    )
+                )
             if card_id not in missing:
                 continue
             if card_id in assigned and assigned[card_id] != label:
                 raise BoosterCatalogueError(
-                    "TCGdex a renvoyé des classifications contradictoires."
+                    text(
+                        "TCGdex a renvoyé des classifications contradictoires.",
+                        "TCGdex returned conflicting classifications.",
+                    )
                 )
             assigned[card_id] = label
             metadata[card_id][field] = label
@@ -244,8 +272,14 @@ def _classify(
     _check_cancelled(cancelled)
     if not missing.issubset(assigned):
         raise BoosterCatalogueError(
-            f"Les informations officielles de l’extension {set_id} sont incomplètes "
-            + f"({len(missing - assigned.keys())} carte(s) sans {field}). Réessaie."
+            text(
+                f"Les informations officielles de l’extension {set_id} sont incomplètes ",
+                f"The official information for set {set_id} is incomplete ",
+            )
+            + text(
+                f"({len(missing - assigned.keys())} carte(s) sans {field}). Réessaie.",
+                f"({len(missing - assigned.keys())} cards missing {field}). Please retry.",
+            )
         )
 
 
@@ -266,7 +300,10 @@ def _load_variants(
     labels = _labels(language, "variants")
     if not _CORE_VARIANTS.issubset(labels):
         raise BoosterCatalogueError(
-            "TCGdex a renvoyé une liste de variantes incomplète."
+            text(
+                "TCGdex a renvoyé une liste de variantes incomplète.",
+                "TCGdex returned an incomplete list of variants.",
+            )
         )
     assigned = {card_id: dict.fromkeys(labels, False) for card_id in missing}
     for label in labels:
@@ -280,21 +317,39 @@ def _load_variants(
         )
         if not isinstance(response, list):
             raise BoosterCatalogueError(
-                "TCGdex a renvoyé une liste de cartes invalide."
+                text(
+                    "TCGdex a renvoyé une liste de cartes invalide.",
+                    "TCGdex returned an invalid list of cards.",
+                )
             )
         for item in cast(list[object], response):
             if not isinstance(item, dict):
-                raise BoosterCatalogueError("TCGdex a renvoyé une carte invalide.")
+                raise BoosterCatalogueError(
+                    text(
+                        "TCGdex a renvoyé une carte invalide.",
+                        "TCGdex returned an invalid card.",
+                    )
+                )
             card_id = cast(dict[str, object], item).get("id")
             if not isinstance(card_id, str) or not card_id:
-                raise BoosterCatalogueError("TCGdex a renvoyé une carte invalide.")
+                raise BoosterCatalogueError(
+                    text(
+                        "TCGdex a renvoyé une carte invalide.",
+                        "TCGdex returned an invalid card.",
+                    )
+                )
             if card_id in assigned:
                 assigned[card_id][label] = True
     _check_cancelled(cancelled)
     if any(not _variants_complete(variants) for variants in assigned.values()):
         raise BoosterCatalogueError(
-            f"Les variantes officielles de l’extension {set_id} sont incomplètes. "
-            + "Réessaie avant d’ouvrir un booster."
+            text(
+                f"Les variantes officielles de l’extension {set_id} sont incomplètes. ",
+                f"The official variants for set {set_id} are incomplete. ",
+            )
+            + text(
+                "Réessaie avant d’ouvrir un booster.", "Retry before opening a booster."
+            )
         )
     for card_id, variants in assigned.items():
         metadata[card_id]["variants"] = variants
@@ -316,14 +371,22 @@ def load_booster_cards(
     """
     _check_cancelled(cancelled)
     if not language.strip() or not set_id.strip():
-        raise BoosterCatalogueError("Langue ou extension manquante.")
+        raise BoosterCatalogueError(
+            text("Langue ou extension manquante.", "Missing language or set.")
+        )
     if any(card.set_id != set_id or not card.id for card in cards):
         raise BoosterCatalogueError(
-            "Le catalogue contient une carte d’une autre extension."
+            text(
+                "Le catalogue contient une carte d’une autre extension.",
+                "The catalogue includes a card from another set.",
+            )
         )
     if len({card.id for card in cards}) != len(cards):
         raise BoosterCatalogueError(
-            "Le catalogue contient des identifiants de cartes répétés."
+            text(
+                "Le catalogue contient des identifiants de cartes répétés.",
+                "The catalogue contains duplicate card identifiers.",
+            )
         )
     if not cards:
         return []

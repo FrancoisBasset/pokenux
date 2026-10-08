@@ -34,7 +34,12 @@ from pokenux.services.games.booster_simulator import (
     SimulatorService,
     SimulatorState,
     format_euros,
+    finish_label,
+    rarity_label,
 )
+from pokenux.services.localization import text
+from pokenux.textual.utils import i18n, translator
+from pokenux.textual.utils.navigation import is_active_view
 from pokenux.models.tcg.card import Card
 from pokenux.services.games.booster_catalogue import (
     BoosterCatalogueError,
@@ -47,12 +52,12 @@ from pokenux.textual.widgets.remote_image import RemoteImage
 
 
 _JOBS = (
-    "Colis préparé",
-    "Rayon rangé",
-    "Inventaire terminé",
-    "Commande emballée",
-    "Client accueilli",
-    "Vitrine nettoyée",
+    ("Colis préparé", "Parcel prepared"),
+    ("Rayon rangé", "Shelf organised"),
+    ("Inventaire terminé", "Inventory completed"),
+    ("Commande emballée", "Order packed"),
+    ("Client accueilli", "Customer welcomed"),
+    ("Vitrine nettoyée", "Display cleaned"),
 )
 _STORE_ERRORS = (SimulatorError, sqlite3.Error, OSError)
 
@@ -63,8 +68,8 @@ def money(amount: int) -> str:
 
 class SimulatorView(Vertical):
     BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("w", "work", "Travailler"),
-        Binding("r", "refresh_account", "Actualiser"),
+        Binding("w", "work", text("Travailler", "Work")),
+        Binding("r", "refresh_account", text("Actualiser", "Refresh")),
     ]
 
     class CardsPrepared(Message):
@@ -94,6 +99,7 @@ class SimulatorView(Vertical):
         self._art_revisions: dict[str, int] = {}
         self._art_keys: dict[str, str] = {}
         self._language: str = "fr"
+        self._catalogue_series: object = None
         self._metadata_cache_path: Path | None = None
         self._loading_set: str | None = None
         self._metadata_generation: int = 0
@@ -103,35 +109,57 @@ class SimulatorView(Vertical):
 
     @override
     def compose(self) -> ComposeResult:
-        yield Label("◈  BOOSTERS & COLLECTION", id="sim_heading")
-        yield Label("Chargement du portefeuille…", id="sim_wallet", markup=False)
         yield Label(
-            "Euros virtuels · Prix et probabilités estimés · Raretés du catalogue.",
+            text("◈  BOOSTERS & COLLECTION", "◈  BOOSTERS & COLLECTION"),
+            id="sim_heading",
+        )
+        yield Label(
+            text("Chargement du portefeuille…", "Loading your wallet…"),
+            id="sim_wallet",
+            markup=False,
+        )
+        yield Label(
+            text(
+                "Euros virtuels · Prix et probabilités estimés · Raretés du catalogue.",
+                "Virtual euros · Estimated prices and odds · Catalogue rarities.",
+            ),
             id="sim_note",
         )
         with TabbedContent(initial="sim_shop_tab", id="sim_sections"):
-            with TabPane("Boutique", id="sim_shop_tab"):
+            with TabPane(text("Boutique", "Shop"), id="sim_shop_tab"):
                 with Horizontal(id="sim_shop_filters"):
                     yield Input(
-                        placeholder="Chercher une extension…", id="sim_offer_search"
+                        placeholder=text("Chercher une extension…", "Search sets…"),
+                        id="sim_offer_search",
                     )
                     yield Select[str](
-                        [], prompt="Choisis une extension", id="sim_offer"
+                        [],
+                        prompt=text("Choisis une extension", "Choose a set"),
+                        id="sim_offer",
                     )
                 yield Label("", id="sim_offer_info", markup=False)
                 with Horizontal(id="sim_buy_actions"):
                     yield Button(
-                        "Acheter & ouvrir",
+                        text("Acheter & ouvrir", "Buy & open"),
                         id="sim_buy",
                         variant="primary",
                         disabled=True,
                     )
                     yield Button(
-                        "Révéler une carte", id="sim_reveal_next", disabled=True
+                        text("Révéler une carte", "Reveal a card"),
+                        id="sim_reveal_next",
+                        disabled=True,
                     )
-                    yield Button("Tout révéler", id="sim_reveal_all", disabled=True)
+                    yield Button(
+                        text("Tout révéler", "Reveal all"),
+                        id="sim_reveal_all",
+                        disabled=True,
+                    )
                 yield Label(
-                    "Choisis une extension et ouvre ton premier booster.",
+                    text(
+                        "Choisis une extension et ouvre ton premier booster.",
+                        "Choose a set and open your first booster.",
+                    ),
                     id="sim_opening_status",
                     markup=False,
                 )
@@ -139,7 +167,10 @@ class SimulatorView(Vertical):
                     with Horizontal(id="sim_opening_layout"):
                         with Vertical(id="sim_opened_art"):
                             yield Label(
-                                "◈\nBOOSTER\n\nLes cartes apparaîtront ici.",
+                                text(
+                                    "◈\nBOOSTER\n\nLes cartes apparaîtront ici.",
+                                    "◈\nBOOSTER\n\nYour cards will appear here.",
+                                ),
                                 classes="sim-art-placeholder",
                                 markup=False,
                             )
@@ -151,42 +182,71 @@ class SimulatorView(Vertical):
                                 show_row_labels=False,
                             )
                             yield Label(
-                                "Révèle les cartes. Entrée sur une ligne pour agrandir.",
+                                text(
+                                    "Révèle les cartes. Entrée sur une ligne pour agrandir.",
+                                    "Reveal your cards. Press Enter on a row to enlarge.",
+                                ),
                                 id="sim_opened_info",
                                 markup=False,
                             )
-            with TabPane("Travail", id="sim_work_tab"):
+            with TabPane(text("Travail", "Work"), id="sim_work_tab"):
                 with VerticalScroll(id="sim_work_panel"):
-                    yield Label("TON PETIT JOB AU MAGASIN", id="sim_work_title")
+                    yield Label(
+                        text("TON PETIT JOB AU MAGASIN", "YOUR PART-TIME SHOP JOB"),
+                        id="sim_work_title",
+                    )
                     yield Label("", id="sim_work_info", markup=False)
                     yield Button(
-                        "Travailler", id="sim_work", variant="success", disabled=True
+                        text("Travailler", "Work"),
+                        id="sim_work",
+                        variant="success",
+                        disabled=True,
                     )
-                    yield Button("Se former", id="sim_upgrade", disabled=True)
+                    yield Button(
+                        text("Se former", "Train"), id="sim_upgrade", disabled=True
+                    )
                     yield Label("", id="sim_work_stats", markup=False)
                     yield Label(
-                        "Une tâche toutes les 2 secondes ; les clics supplémentaires ne rapportent rien.\n"
-                        + "Les formations augmentent le gain des prochains clics.\n"
-                        + "Retourne en Boutique pour acheter des boosters.",
+                        text(
+                            "Une tâche toutes les 2 secondes ; les clics supplémentaires ne rapportent rien.\n",
+                            "One task every 2 seconds; extra clicks earn nothing.\n",
+                        )
+                        + text(
+                            "Les formations augmentent le gain des prochains clics.\n",
+                            "Training increases earnings from future clicks.\n",
+                        )
+                        + text(
+                            "Retourne en Boutique pour acheter des boosters.",
+                            "Return to the Shop to buy boosters.",
+                        ),
                         id="sim_work_tip",
                     )
-            with TabPane("Collection", id="sim_collection_tab"):
+            with TabPane(text("Collection", "Collection"), id="sim_collection_tab"):
                 with Horizontal(id="sim_collection_filters"):
                     yield Input(
-                        placeholder="Chercher une carte ou une extension…",
+                        placeholder=text(
+                            "Chercher une carte ou une extension…",
+                            "Search cards or sets…",
+                        ),
                         id="sim_collection_search",
                     )
                     yield Select[str](
                         [
-                            ("Toutes les cartes", "all"),
-                            ("Seulement les doublons", "duplicates"),
+                            (text("Toutes les cartes", "All cards"), "all"),
+                            (
+                                text("Seulement les doublons", "Duplicates only"),
+                                "duplicates",
+                            ),
                         ],
                         value="all",
                         allow_blank=False,
                         id="sim_collection_filter",
                     )
                 yield Label(
-                    "Ta collection est vide. Ouvre un booster !",
+                    text(
+                        "Ta collection est vide. Ouvre un booster !",
+                        "Your collection is empty. Open a booster!",
+                    ),
                     id="sim_collection_stats",
                     markup=False,
                 )
@@ -200,20 +260,135 @@ class SimulatorView(Vertical):
                         )
                         with Vertical(id="sim_collection_art"):
                             yield Label(
-                                "Sélectionne une carte pour voir son image.",
+                                text(
+                                    "Sélectionne une carte pour voir son image.",
+                                    "Select a card to see its artwork.",
+                                ),
                                 classes="sim-art-placeholder",
                                 markup=False,
                             )
                 yield Label("", id="sim_sale_info", markup=False)
                 with Horizontal(id="sim_sale_actions"):
-                    yield Button("Vendre 1", id="sim_sell_one", disabled=True)
                     yield Button(
-                        "Vendre tous les exemplaires", id="sim_sell_all", disabled=True
+                        text("Vendre 1", "Sell 1"), id="sim_sell_one", disabled=True
                     )
                     yield Button(
-                        "Vendre les doublons", id="sim_sell_duplicates", disabled=True
+                        text("Vendre tous les exemplaires", "Sell all copies"),
+                        id="sim_sell_all",
+                        disabled=True,
+                    )
+                    yield Button(
+                        text("Vendre les doublons", "Sell duplicates"),
+                        id="sim_sell_duplicates",
+                        disabled=True,
                     )
         yield Label("", id="sim_feedback", markup=False)
+
+    def refresh_language(self) -> None:
+        if not self._ready:
+            return
+        translator.refresh_bindings(
+            self,
+            {
+                "work": ("Travailler", "Work"),
+                "refresh_account": ("Actualiser", "Refresh"),
+            },
+        )
+        for identifier, pair in {
+            "sim_heading": ("◈  BOOSTERS & COLLECTION", "◈  BOOSTERS & COLLECTION"),
+            "sim_note": (
+                "Euros virtuels · Prix et probabilités estimés · Raretés du catalogue.",
+                "Virtual euros · Estimated prices and odds · Catalogue rarities.",
+            ),
+            "sim_work_title": ("TON PETIT JOB AU MAGASIN", "YOUR PART-TIME SHOP JOB"),
+            "sim_work_tip": (
+                "Une tâche toutes les 2 secondes ; les clics supplémentaires ne rapportent rien.\nLes formations augmentent le gain des prochains clics.\nRetourne en Boutique pour acheter des boosters.",
+                "One task every 2 seconds; extra clicks earn nothing.\nTraining increases earnings from future clicks.\nReturn to the Shop to buy boosters.",
+            ),
+        }.items():
+            self.query_one(f"#{identifier}", Label).update(text(*pair))
+        for identifier, pair in {
+            "sim_reveal_next": ("Révéler une carte", "Reveal a card"),
+            "sim_reveal_all": ("Tout révéler", "Reveal all"),
+            "sim_sell_duplicates": ("Vendre les doublons", "Sell duplicates"),
+        }.items():
+            self.query_one(f"#{identifier}", Button).label = text(*pair)
+        self.query_one("#sim_offer_search", Input).placeholder = text(
+            "Chercher une extension…", "Search sets…"
+        )
+        self.query_one("#sim_collection_search", Input).placeholder = text(
+            "Chercher une carte ou une extension…", "Search cards or sets…"
+        )
+        self._picker("#sim_offer").prompt = text(
+            "Choisis une extension", "Choose a set"
+        )
+        sections = self.query_one("#sim_sections", TabbedContent)
+        for identifier, pair in {
+            "sim_shop_tab": ("Boutique", "Shop"),
+            "sim_work_tab": ("Travail", "Work"),
+            "sim_collection_tab": ("Collection", "Collection"),
+        }.items():
+            sections.get_tab(identifier).label = text(*pair)
+        picker = self._picker("#sim_collection_filter")
+        choice = picker.value
+        picker.set_options(
+            [
+                (text("Toutes les cartes", "All cards"), "all"),
+                (text("Seulement les doublons", "Duplicates only"), "duplicates"),
+            ]
+        )
+        picker.value = choice
+        previous_row = self._table("#sim_opened_cards").cursor_row
+        for selector, columns in (
+            (
+                "#sim_opened_cards",
+                [
+                    (text("N°", "No."), 3),
+                    (text("Carte", "Card"), 25),
+                    (text("Rareté / finition", "Rarity / finish"), 26),
+                    (text("Vente", "Resale"), 9),
+                    (text("Découverte", "Discovery"), 10),
+                ],
+            ),
+            (
+                "#sim_collection",
+                [
+                    (text("Carte", "Card"), 25),
+                    (text("Extension", "Set"), 25),
+                    (text("Rareté / finition", "Rarity / finish"), 26),
+                    (text("Qté", "Qty"), 5),
+                    (text("Vente / carte", "Resale / card"), 12),
+                ],
+            ),
+        ):
+            table = self._table(selector)
+            table.clear(columns=True)
+            for label, width in columns:
+                table.add_column(label, width=width)
+        self._owned = ()
+        self.query_one("#sim_feedback", Label).update("")
+        self.refresh_data()
+        self._render_collection()
+        if self._opening is not None:
+            self._render_opening()
+            if self._revealed:
+                index = min(previous_row, self._revealed - 1)
+                self._table("#sim_opened_cards").move_cursor(row=index, animate=False)
+                self._select_opened(index)
+        else:
+            self.query_one("#sim_opening_status", Label).update(
+                text(
+                    "Choisis une extension et ouvre ton premier booster.",
+                    "Choose a set and open your first booster.",
+                )
+            )
+            self.query_one("#sim_opened_info", Label).update(
+                text(
+                    "Révèle les cartes. Entrée sur une ligne pour agrandir.",
+                    "Reveal your cards. Press Enter on a row to enlarge.",
+                )
+            )
+            self.call_later(self._show_art, "sim_opened_art", None)
 
     def _table(self, selector: str) -> DataTable[str | Text]:
         return cast(DataTable[str | Text], self.query_one(selector, DataTable))
@@ -224,24 +399,31 @@ class SimulatorView(Vertical):
     def on_mount(self) -> None:
         opened = self._table("#sim_opened_cards")
         for label, width in (
-            ("N°", 3),
-            ("Carte", 25),
-            ("Rareté / finition", 26),
-            ("Vente", 9),
-            ("Découverte", 10),
+            (text("N°", "No."), 3),
+            (text("Carte", "Card"), 25),
+            (text("Rareté / finition", "Rarity / finish"), 26),
+            (text("Vente", "Resale"), 9),
+            (text("Découverte", "Discovery"), 10),
         ):
             _ = opened.add_column(label, width=width)
         collection = self._table("#sim_collection")
         collection.fixed_columns = 1
         for label, width in (
-            ("Carte", 25),
-            ("Extension", 25),
-            ("Rareté / finition", 26),
-            ("Qté", 5),
-            ("Vente / carte", 12),
+            (text("Carte", "Card"), 25),
+            (text("Extension", "Set"), 25),
+            (text("Rareté / finition", "Rarity / finish"), 26),
+            (text("Qté", "Qty"), 5),
+            (text("Vente / carte", "Resale / card"), 12),
         ):
             _ = collection.add_column(label, width=width)
         self._ready = True
+        translator.refresh_bindings(
+            self,
+            {
+                "work": ("Travailler", "Work"),
+                "refresh_account": ("Actualiser", "Refresh"),
+            },
+        )
         pane: TabPane | None = None
         for ancestor in self.ancestors:
             if isinstance(ancestor, TabPane):
@@ -273,7 +455,7 @@ class SimulatorView(Vertical):
         _ = self.set_class(event.size.height < 25, "short")
 
     def _focus_visible(self) -> None:
-        if not self.is_attached or self.region.height <= 0:
+        if not self.is_attached or self.region.height <= 0 or not is_active_view(self):
             return
         section = self.query_one("#sim_sections", TabbedContent).active
         if section == "sim_work_tab":
@@ -291,7 +473,20 @@ class SimulatorView(Vertical):
                 _ = tcg_library.set_language(user_data.get_tcg_lang())
             self._service = SimulatorService(tcg_library.series)
             self._language = tcg_library.get_language_status().active
+            self._catalogue_series = tcg_library.series
             self._metadata_cache_path = user_data.path / "cache" / "boosters"
+        if self._owns_service:
+            from pokenux.services import tcg_library
+
+            if (
+                self._language != tcg_library.get_language_status().active
+                or self._catalogue_series is not tcg_library.series
+            ):
+                self._cancel_preparation()
+                self._service.set_catalogue(tcg_library.series)
+                self._catalogue_series = tcg_library.series
+                self._language = tcg_library.get_language_status().active
+                self._metadata_errors.clear()
         if self._metadata_cache_path is None:
             database = self._service.db_path
             self._metadata_cache_path = (
@@ -313,31 +508,65 @@ class SimulatorView(Vertical):
                 self._fill_offer_picker()
             owned = tuple(service.collection())
         except _STORE_ERRORS as error:
-            self._feedback(f"Sauvegarde indisponible : {error}", error=True)
+            self._feedback(
+                text(
+                    f"Sauvegarde indisponible : {error}", f"Save unavailable: {error}"
+                ),
+                error=True,
+            )
             return
+        note = text(
+            "Euros virtuels · Prix et probabilités estimés · Raretés du catalogue.",
+            "Virtual euros · Estimated prices and odds · Catalogue rarities.",
+        )
+        if self._owns_service:
+            from pokenux.services import tcg_library
+
+            warning = tcg_library.get_language_status().warning
+            if warning:
+                note += " " + warning
+        self.query_one("#sim_note", Label).update(note)
         self.query_one("#sim_wallet", Label).update(
-            f"Solde : {money(state.balance)}  ·  Collection : {money(state.collection_value)}  ·  Boosters : {state.boosters_opened}"
+            text(
+                f"Solde : {money(state.balance)}  ·  Collection : {money(state.collection_value)}  ·  Boosters : {state.boosters_opened}",
+                f"Balance: {money(state.balance)}  ·  Collection: {money(state.collection_value)}  ·  Boosters: {state.boosters_opened}",
+            )
         )
         self.query_one("#sim_work_info", Label).update(
-            f"Formation niveau {state.work_level} · Salaire : {money(state.work_income)} par clic"
+            text(
+                f"Formation niveau {state.work_level} · Salaire : {money(state.work_income)} par clic",
+                f"Training level {state.work_level} · Pay: {money(state.work_income)} per click",
+            )
         )
         self._work_available_at = monotonic() + state.work_ready_in
         self._update_work_status()
         upgrade = self.query_one("#sim_upgrade", Button)
-        upgrade.label = f"Formation · {money(state.upgrade_cost)}"
+        upgrade.label = text(
+            f"Formation · {money(state.upgrade_cost)}",
+            f"Training · {money(state.upgrade_cost)}",
+        )
         upgrade.disabled = state.work_level >= 10 or state.balance < state.upgrade_cost
         if state.work_level >= 10:
-            upgrade.label = "Formation maximale"
+            upgrade.label = text("Formation maximale", "Training maxed out")
         self.query_one("#sim_work_stats", Label).update(
-            f"{state.clicks} tâches accomplies · {state.boosters_opened} boosters ouverts · {state.cards_sold} cartes vendues"
+            text(
+                f"{state.clicks} tâches accomplies · {state.boosters_opened} boosters ouverts · {state.cards_sold} cartes vendues",
+                f"{state.clicks} tasks completed · {state.boosters_opened} boosters opened · {state.cards_sold} cards sold",
+            )
         )
         if owned != self._owned:
             self._owned = owned
             self._render_collection()
         self.query_one("#sim_collection_stats", Label).update(
-            f"{state.cards_owned} cartes · {len(owned)} références · Valeur de revente : {money(state.collection_value)}"
+            text(
+                f"{state.cards_owned} cartes · {len(owned)} références · Valeur de revente : {money(state.collection_value)}",
+                f"{state.cards_owned} cards · {len(owned)} entries · Resale value: {money(state.collection_value)}",
+            )
             if owned
-            else "Ta collection est vide. Ouvre un booster !"
+            else text(
+                "Ta collection est vide. Ouvre un booster !",
+                "Your collection is empty. Open a booster!",
+            )
         )
         self.query_one("#sim_sell_duplicates", Button).disabled = not any(
             card.quantity > 1 for card in owned
@@ -356,9 +585,14 @@ class SimulatorView(Vertical):
         button = self.query_one("#sim_work", Button)
         button.disabled = remaining > 0
         button.label = (
-            f"Prochaine tâche · {remaining:.1f} s".replace(".", ",")
+            text(
+                f"Prochaine tâche · {remaining:.1f} s", f"Next task · {remaining:.1f} s"
+            ).replace(".", "," if i18n.get_language() == "fr" else ".")
             if remaining
-            else f"Travailler · +{money(self._state.work_income)}"
+            else text(
+                f"Travailler · +{money(self._state.work_income)}",
+                f"Work · +{money(self._state.work_income)}",
+            )
         )
 
     @on(Input.Changed, "#sim_offer_search")
@@ -403,7 +637,10 @@ class SimulatorView(Vertical):
         if offer is None or self._state is None:
             buy.disabled = True
             self.query_one("#sim_offer_info", Label).update(
-                "Aucune extension disponible pour cette recherche."
+                text(
+                    "Aucune extension disponible pour cette recherche.",
+                    "No sets match your search.",
+                )
             )
             return
         missing = max(0, offer.price - self._state.balance)
@@ -416,14 +653,20 @@ class SimulatorView(Vertical):
         info = self.query_one("#sim_offer_info", Label)
         info.tooltip = f"{offer.composition}\n{offer.price_note}"
         info.update(
-            f"{offer.serie_name} · {offer.card_count} cartes · {offer.available_cards} possibles · Prix estimé"
+            text(
+                f"{offer.serie_name} · {offer.card_count} cartes · {offer.available_cards} possibles · Prix estimé",
+                f"{offer.serie_name} · {offer.card_count} cards · {offer.available_cards} available · Estimated price",
+            )
             + (
-                f" · Il manque {money(missing)} : travaille pour gagner de l’argent."
+                text(
+                    f" · Il manque {money(missing)} : travaille pour gagner de l’argent.",
+                    f" · You need {money(missing)} more: work to earn money.",
+                )
                 if missing
                 else ""
             )
             + (
-                " · Chargement des raretés…"
+                text(" · Chargement des raretés…", " · Loading rarities…")
                 if not ready and not error
                 else f" · {error}"
                 if error and not ready
@@ -431,11 +674,14 @@ class SimulatorView(Vertical):
             )
         )
         buy.label = (
-            f"Acheter & ouvrir · {money(offer.price)}"
+            text(
+                f"Acheter & ouvrir · {money(offer.price)}",
+                f"Buy & open · {money(offer.price)}",
+            )
             if ready
-            else "Réessayer les données"
+            else text("Réessayer les données", "Retry card data")
             if error and not loading
-            else "Chargement des cartes…"
+            else text("Chargement des cartes…", "Loading cards…")
         )
         buy.disabled = bool(missing) if ready else loading or not error
         if not ready and not loading and not error and service is not None:
@@ -489,7 +735,10 @@ class SimulatorView(Vertical):
                 self._service.set_cards(event.set_id, event.cards)
                 if not self._service.metadata_ready(event.set_id):
                     raise SimulatorError(
-                        "Les données chargées ne permettent pas de respecter les emplacements de ce booster."
+                        text(
+                            "Les données chargées ne permettent pas de respecter les emplacements de ce booster.",
+                            "The loaded data cannot fill this booster’s required slots.",
+                        )
                     )
             except _STORE_ERRORS as failure:
                 error = str(failure)
@@ -499,7 +748,12 @@ class SimulatorView(Vertical):
             _ = self._metadata_errors.pop(event.set_id, None)
         self.refresh_data()
         if error and str(self._picker("#sim_offer").value) == event.set_id:
-            self._feedback(f"Raretés indisponibles : {error}", error=True)
+            self._feedback(
+                text(
+                    f"Raretés indisponibles : {error}", f"Rarities unavailable: {error}"
+                ),
+                error=True,
+            )
 
     @on(Button.Pressed, "#sim_work")
     def action_work(self) -> None:
@@ -512,7 +766,7 @@ class SimulatorView(Vertical):
             self._feedback(str(error), error=True)
             return
         self.refresh_data()
-        self._feedback(f"{random.choice(_JOBS)} : +{money(result.earned)} !")
+        self._feedback(f"{text(*random.choice(_JOBS))} : +{money(result.earned)} !")
 
     @on(Button.Pressed, "#sim_upgrade")
     def upgrade_work(self) -> None:
@@ -525,7 +779,10 @@ class SimulatorView(Vertical):
             return
         self.refresh_data()
         self._feedback(
-            f"Formation niveau {state.work_level} ! Tes prochains clics rapportent {money(state.work_income)}."
+            text(
+                f"Formation niveau {state.work_level} ! Tes prochains clics rapportent {money(state.work_income)}.",
+                f"Training level {state.work_level}! Your next clicks earn {money(state.work_income)}.",
+            )
         )
 
     @on(Button.Pressed, "#sim_buy")
@@ -555,7 +812,10 @@ class SimulatorView(Vertical):
         self.refresh_data()
         self._render_opening()
         self._feedback(
-            f"Booster {opening.offer.name} acheté pour {money(opening.offer.price)}. Les cartes sont sauvegardées dans ta collection."
+            text(
+                f"Booster {opening.offer.name} acheté pour {money(opening.offer.price)}. Les cartes sont sauvegardées dans ta collection.",
+                f"Bought a {opening.offer.name} booster for {money(opening.offer.price)}. The cards are saved in your collection.",
+            )
         )
         _ = self.query_one("#sim_reveal_next", Button).focus()
 
@@ -575,16 +835,21 @@ class SimulatorView(Vertical):
         if self._opening is None:
             return
         opening = self._opening
+        opening_name = self._offers.get(opening.offer.set_id, opening.offer).name
         table = self._table("#sim_opened_cards")
         self._updating = True
         _ = table.clear()
         for index, card in enumerate(opening.cards[: self._revealed]):
+            if self._service is not None:
+                card = self._service.display_card(card)
             _ = table.add_row(
                 str(index + 1),
                 Text(card.name),
-                Text(f"{card.rarity} · {card.finish}"),
+                Text(f"{rarity_label(card.rarity)} · {finish_label(card.finish)}"),
                 money(card.value),
-                "Nouvelle" if self._new_cards[index] else "Doublon",
+                text("Nouvelle", "New")
+                if self._new_cards[index]
+                else text("Doublon", "Duplicate"),
                 key=str(index),
             )
         if self._revealed:
@@ -594,9 +859,15 @@ class SimulatorView(Vertical):
         for identifier in ("sim_reveal_next", "sim_reveal_all"):
             self.query_one(f"#{identifier}", Button).disabled = finished
         self.query_one("#sim_opening_status", Label).update(
-            f"{opening.offer.name} · {self._revealed} / {len(opening.cards)} cartes révélées"
+            text(
+                f"{opening_name} · {self._revealed} / {len(opening.cards)} cartes révélées",
+                f"{opening_name} · {self._revealed} / {len(opening.cards)} cards revealed",
+            )
             + (
-                f" · Valeur de revente : {money(sum(card.value for card in opening.cards))}"
+                text(
+                    f" · Valeur de revente : {money(sum(card.value for card in opening.cards))}",
+                    f" · Resale value: {money(sum(card.value for card in opening.cards))}",
+                )
                 if finished
                 else ""
             )
@@ -605,7 +876,10 @@ class SimulatorView(Vertical):
             self._select_opened(self._revealed - 1)
         else:
             self.query_one("#sim_opened_info", Label).update(
-                "Ton booster est prêt. Révèle ta première carte !"
+                text(
+                    "Ton booster est prêt. Révèle ta première carte !",
+                    "Your booster is ready. Reveal your first card!",
+                )
             )
             _ = self.call_later(self._show_art, "sim_opened_art", None)
 
@@ -621,9 +895,15 @@ class SimulatorView(Vertical):
         if self._opening is None:
             return
         card = self._opening.cards[index]
+        if self._service is not None:
+            card = self._service.display_card(card)
         self.query_one("#sim_opened_info", Label).update(
-            f"{card.name} · {card.rarity} · {card.finish} · {money(card.value)}"
-            + (" · Nouvelle carte !" if self._new_cards[index] else " · Doublon")
+            f"{card.name} · {rarity_label(card.rarity)} · {finish_label(card.finish)} · {money(card.value)}"
+            + (
+                text(" · Nouvelle carte !", " · New card!")
+                if self._new_cards[index]
+                else text(" · Doublon", " · Duplicate")
+            )
         )
         _ = self.call_later(self._show_art, "sim_opened_art", card)
 
@@ -634,7 +914,13 @@ class SimulatorView(Vertical):
             index = int(event.row_key.value)
             if 0 <= index < self._revealed:
                 app = cast(App[None], self.app)
-                _ = app.push_screen(SimulatorCardScreen(self._opening.cards[index]))
+                _ = app.push_screen(
+                    SimulatorCardScreen(
+                        self._service.display_card(self._opening.cards[index])
+                        if self._service is not None
+                        else self._opening.cards[index]
+                    )
+                )
 
     @on(DataTable.RowSelected, "#sim_collection")
     def preview_owned(self, event: DataTable.RowSelected) -> None:
@@ -662,7 +948,7 @@ class SimulatorView(Vertical):
             for card in self._owned
             if term
             in normalize_answer(
-                f"{card.name} {card.set_name} {card.card_id} {card.finish}"
+                f"{card.name} {card.set_name} {card.card_id} {finish_label(card.finish)}"
             )
             and (not only_duplicates or card.quantity > 1)
         ]
@@ -674,7 +960,7 @@ class SimulatorView(Vertical):
             _ = table.add_row(
                 Text(card.name),
                 Text(card.set_name),
-                Text(f"{card.rarity} · {card.finish}"),
+                Text(f"{rarity_label(card.rarity)} · {finish_label(card.finish)}"),
                 str(card.quantity),
                 money(card.value),
                 key=card.card_id,
@@ -713,18 +999,27 @@ class SimulatorView(Vertical):
         all_copies = self.query_one("#sim_sell_all", Button)
         one.disabled = all_copies.disabled = card is None
         if card:
-            one.label = f"Vendre 1 · {money(card.value)}"
-            all_copies.label = (
-                f"Vendre les {card.quantity} · {money(card.quantity * card.value)}"
+            one.label = text(
+                f"Vendre 1 · {money(card.value)}", f"Sell 1 · {money(card.value)}"
+            )
+            all_copies.label = text(
+                f"Vendre les {card.quantity} · {money(card.quantity * card.value)}",
+                f"Sell {card.quantity} · {money(card.quantity * card.value)}",
             )
             self.query_one("#sim_sale_info", Label).update(
-                f"{card.name} · {card.finish} · {card.quantity} exemplaire(s) · {money(card.value)} par carte"
+                text(
+                    f"{card.name} · {finish_label(card.finish)} · {card.quantity} exemplaire(s) · {money(card.value)} par carte",
+                    f"{card.name} · {finish_label(card.finish)} · {card.quantity} copies · {money(card.value)} per card",
+                )
             )
         else:
-            one.label = "Vendre 1"
-            all_copies.label = "Vendre tous"
+            one.label = text("Vendre 1", "Sell 1")
+            all_copies.label = text("Vendre tous", "Sell all")
             self.query_one("#sim_sale_info", Label).update(
-                "Sélectionne une carte pour la revendre. Les doublons conservent un exemplaire par carte."
+                text(
+                    "Sélectionne une carte pour la revendre. Les doublons conservent un exemplaire par carte.",
+                    "Select a card to sell. Selling duplicates keeps one copy of each card.",
+                )
             )
         _ = self.call_later(self._show_art, "sim_collection_art", card)
 
@@ -749,7 +1044,12 @@ class SimulatorView(Vertical):
                 None,
             )
             if card is None:
-                raise SimulatorError("Cette carte n’est plus dans ta collection.")
+                raise SimulatorError(
+                    text(
+                        "Cette carte n’est plus dans ta collection.",
+                        "This card is no longer in your collection.",
+                    )
+                )
             quantity = card.quantity if all_copies else 1
             earned = self._service.sell(card.card_id, quantity)
         except _STORE_ERRORS as error:
@@ -757,7 +1057,12 @@ class SimulatorView(Vertical):
             self.refresh_data()
             return
         self.refresh_data()
-        self._feedback(f"{quantity} × {card.name} vendu(s) : +{money(earned)}.")
+        self._feedback(
+            text(
+                f"{quantity} × {card.name} vendu(s) : +{money(earned)}.",
+                f"Sold {quantity} × {card.name}: +{money(earned)}.",
+            )
+        )
 
     @on(Button.Pressed, "#sim_sell_duplicates")
     def sell_duplicates(self) -> None:
@@ -770,15 +1075,24 @@ class SimulatorView(Vertical):
             return
         self.refresh_data()
         self._feedback(
-            f"Doublons vendus : +{money(earned)}. Un exemplaire de chaque carte conservé."
+            text(
+                f"Doublons vendus : +{money(earned)}. Un exemplaire de chaque carte conservé.",
+                f"Duplicates sold: +{money(earned)}. Kept one copy of each card.",
+            )
             if earned
-            else "Tu n’as aucun doublon à vendre."
+            else text(
+                "Tu n’as aucun doublon à vendre.", "You have no duplicates to sell."
+            )
         )
 
     async def _show_art(self, identifier: str, card: OwnedCard | None) -> None:
         if not self.is_attached:
             return
-        key = f"{card.card_id}:{card.image}" if card else "empty"
+        key = (
+            f"{card.card_id}:{card.image}:{i18n.get_language()}"
+            if card
+            else f"empty:{i18n.get_language()}"
+        )
         if self._art_keys.get(identifier) == key:
             return
         self._art_keys[identifier] = key
@@ -792,14 +1106,23 @@ class SimulatorView(Vertical):
         image_url = card_image_url(card.image) if card else None
         if image_url:
             await slot.mount(
-                RemoteImage(image_url, placeholder="Chargement de l’image…")
+                RemoteImage(
+                    image_url,
+                    placeholder=text("Chargement de l’image…", "Loading artwork…"),
+                )
             )
         else:
             await slot.mount(
                 Label(
-                    "Image indisponible\nLa carte reste disponible hors ligne."
+                    text(
+                        "Image indisponible\nLa carte reste disponible hors ligne.",
+                        "Image unavailable\nThe card remains available offline.",
+                    )
                     if card
-                    else "◈\nRévèle ou sélectionne une carte.",
+                    else text(
+                        "◈\nRévèle ou sélectionne une carte.",
+                        "◈\nReveal or select a card.",
+                    ),
                     classes="sim-art-placeholder",
                     markup=False,
                 )
@@ -812,7 +1135,10 @@ class SimulatorView(Vertical):
         if isinstance(sender, RemoteImage):
             for label in sender.query(Label):
                 label.update(
-                    "Image indisponible\nLa carte reste disponible hors ligne."
+                    text(
+                        "Image indisponible\nLa carte reste disponible hors ligne.",
+                        "Image unavailable\nThe card remains available offline.",
+                    )
                 )
 
     def action_refresh_account(self) -> None:
