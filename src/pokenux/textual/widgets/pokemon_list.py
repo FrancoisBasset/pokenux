@@ -1,12 +1,13 @@
 from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.message import Message
 from textual.widgets import Label
 
 from pokenux.models.pokemon.pokemon import Pokemon
-from pokenux.textual.widgets.remote_image import RemoteImage
+from pokenux.textual.utils.pokemon_types import type_badges
+from pokenux.textual.widgets.pokemon_art import PokemonArt
 
 GENERATIONS = ("", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX")
 
@@ -23,10 +24,15 @@ class PokemonTableHeader(Horizontal):
     def compose(self) -> ComposeResult:
         yield Label("N°", classes="pokemon-number")
         yield Label("", classes="pokemon-thumbnail")
-        yield Label("Nom", classes="pokemon-name")
-        yield Label("Type", classes="pokemon-types")
+        yield Label("POKÉMON", classes="pokemon-identity")
+        yield Label("TYPES", classes="pokemon-types")
         yield Label("Gén.", classes="pokemon-generation")
         yield Label("Stade", classes="pokemon-stage")
+
+    def on_resize(self, event: events.Resize) -> None:
+        self.set_class(event.size.width < 72, "dense")
+        self.set_class(event.size.width < 60, "slim")
+        self.set_class(event.size.width < 48, "tiny")
 
 
 class PokemonRow(Horizontal):
@@ -42,16 +48,23 @@ class PokemonRow(Horizontal):
     def compose(self) -> ComposeResult:
         pokemon = self.pokemon
         yield Label(f"#{pokemon.pokedex_id:04d}", classes="pokemon-number")
-        yield RemoteImage(pokemon.sprites.regular, classes="pokemon-thumbnail")
-        yield Label(pokemon.name.fr, classes="pokemon-name", markup=False)
+        yield PokemonArt(pokemon.sprites.regular, classes="pokemon-thumbnail")
+        with Vertical(classes="pokemon-identity"):
+            yield Label(pokemon.name.fr, classes="pokemon-name", markup=False)
+            yield Label(pokemon.category, classes="pokemon-category", markup=False)
         yield Label(
-            " / ".join(
+            type_badges(
                 t["name"] if isinstance(t, dict) else t.name for t in pokemon.types
             ),
             classes="pokemon-types",
         )
         yield Label(generation_label(pokemon.generation), classes="pokemon-generation")
         yield Label(pokemon.stage, classes="pokemon-stage")
+
+    def on_resize(self, event: events.Resize) -> None:
+        self.set_class(event.size.width < 72, "dense")
+        self.set_class(event.size.width < 60, "slim")
+        self.set_class(event.size.width < 48, "tiny")
 
     def on_click(self, event: events.Click) -> None:
         self.post_message(self.Clicked(self))
@@ -95,7 +108,12 @@ class PokemonList(VerticalScroll):
         if self.pokemon_list:
             yield from self.next_rows()
         else:
-            yield Label("Aucun Pokémon ne correspond aux filtres.", id="pokemon_empty")
+            yield Label(
+                "[bold]Aucun Pokémon trouvé[/]\n\n"
+                + "Essaie un autre nom ou retire quelques filtres.\n"
+                + "[dim]Tout effacer permet de retrouver tout le Pokédex.[/]",
+                id="pokemon_empty",
+            )
 
     def next_rows(self, minimum: int = 0) -> ComposeResult:
         start = self.loaded_count
@@ -129,7 +147,12 @@ class PokemonList(VerticalScroll):
             self.call_after_refresh(self.scroll_to_selection)
         else:
             await self.mount(
-                Label("Aucun Pokémon ne correspond aux filtres.", id="pokemon_empty")
+                Label(
+                    "[bold]Aucun Pokémon trouvé[/]\n\n"
+                    + "Essaie un autre nom ou retire quelques filtres.\n"
+                    + "[dim]Tout effacer permet de retrouver tout le Pokédex.[/]",
+                    id="pokemon_empty",
+                )
             )
         self.post_message(self.Selected(self.selected_pokemon))
         self.call_after_refresh(self.check_more)

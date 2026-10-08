@@ -36,6 +36,15 @@ All directly from the terminal.
 * Sort by height / weight
 * View cards linked to a Pokémon
 
+Open **Pokédex** from **Accueil**. Search by name or national number, choose a
+sort order, and use **Filtres** to combine generations, types and evolution
+stages. Selected filters appear as removable chips above the results.
+The list uses coloured type badges and follows your selection with a profile
+showing artwork, measurements, abilities, statistics, evolutions and TCG cards.
+On narrow terminals, **Fiche →** opens the profile and **← Liste** returns to
+the results. Keyboard shortcuts: `/` to search, `f` for filters, arrow keys to
+browse, Enter for the profile, `t` for its cards, and Escape to return.
+
 ### Cards
 
 * Browse series and expansions in the TCG catalogue

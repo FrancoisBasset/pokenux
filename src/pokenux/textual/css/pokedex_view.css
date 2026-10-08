@@ -1,86 +1,79 @@
 PokedexView {
-    background: #060c14;
-    color: #e3eaf3;
-    padding: 0 1;
+    height: 1fr;
+    background: #080f19;
+    color: #e4ebf5;
+    padding: 0 2;
 }
 
-PokedexView #pokedex_toolbar {
+PokedexView #pokedex_heading { height: 3; align: left middle; }
+PokedexView #pokedex_intro { width: 1fr; height: 2; }
+PokedexView #pokedex_title { height: 1; color: #83b7ff; text-style: bold; }
+PokedexView #pokedex_subtitle { height: 1; color: #99aabd; }
+PokedexView Button {
     height: 3;
-    margin-bottom: 1;
-    align: left middle;
+    min-width: 0;
+    border: tall transparent;
+    background: #17273c;
+    color: #a8caff;
+    padding: 0 1;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
 }
+PokedexView Button:hover,
+PokedexView Button:focus { background: #243d5a; color: #f2f5fc; border: tall #83b7ff; }
+PokedexView Button:disabled { color: #64778e; background: #111d2d; }
+PokedexView #pokemon_toggle_filters { width: 17; margin-left: 1; }
+PokedexView #pokemon_toggle_filters.active { background: #243d5a; color: #f2f5fc; }
+PokedexView #pokemon_open_details,
+PokedexView #pokemon_back { width: 11; margin-left: 1; }
+PokedexView #pokemon_back { display: none; }
 
-PokedexView #pokemon_input {
-    width: 1fr;
-    margin-right: 2;
-}
+PokedexView #pokedex_toolbar { height: 3; margin-bottom: 1; }
+PokedexView #pokemon_input { width: 1fr; margin-right: 1; }
+PokedexView #pokemon_sort { width: 21; margin-right: 1; }
+PokedexView #pokemon_sort_direction { width: 18; }
+PokedexView Input,
+PokedexView SelectCurrent { background: #111d2d; border: tall #2b3d54; }
+PokedexView SelectCurrent { padding: 0 1; }
+PokedexView SelectCurrent > #label { text-wrap: nowrap; text-overflow: ellipsis; }
+PokedexView Input:focus,
+PokedexView Select:focus > SelectCurrent { border: tall #83b7ff; }
 
-PokedexView .toolbar-label {
-    color: #aab3be;
-    width: auto;
-    height: 1;
-    margin: 1 1 0 0;
-}
-
-PokedexView #pokemon_sort {
-    width: 22;
-    margin-right: 1;
-}
-
-PokedexView #pokemon_sort_direction {
-    width: 20;
-}
-
-PokedexView #pokedex_content {
-    height: 1fr;
-}
-
+PokedexView #pokedex_content { height: 1fr; }
 PokedexView #pokemon_filters {
-    width: 35;
+    width: 30;
     height: 1fr;
-    border: round #334154;
-    background: #09121c;
+    border: round #2b3d54;
+    background: #0e1928;
     padding: 0 1;
     margin-right: 1;
     scrollbar-size: 1 1;
+    scrollbar-background: #0e1928;
+    scrollbar-color: #33445b;
 }
-
 PokedexView #filters_title {
     width: 1fr;
-    height: 2;
-    color: #5897ff;
+    height: 3;
+    content-align: left middle;
+    color: #83b7ff;
     text-style: bold;
 }
-
-PokedexView #pokemon_filters Grid {
-    height: auto;
-    grid-rows: auto;
-}
-
-PokedexView #generations_grid {
-    grid-size: 3;
-}
-
-PokedexView #types_grid,
-PokedexView #evolutions_grid {
-    grid-size: 1;
-}
-
+PokedexView #pokemon_filters Grid { height: auto; grid-rows: auto; }
+PokedexView #generations_grid { grid-size: 3; }
+PokedexView #types_grid { grid-size: 2; }
+PokedexView #evolutions_grid { grid-size: 1; }
 PokedexView .filters_container {
     height: auto;
-    padding: 0 1;
+    padding: 0 0 1 0;
     margin-bottom: 1;
-    border: round #263443;
-    background: #0d1722;
+    border-bottom: solid #25354a;
 }
-
-PokedexView .filters_container Label {
+PokedexView .filters_container > Label {
     width: 1fr;
-    height: 1;
-    color: #5897ff;
+    height: 2;
+    color: #e4ebf5;
     text-style: bold;
 }
-
 PokedexView .filters_container Checkbox {
     width: 1fr;
     height: 1;
@@ -89,238 +82,162 @@ PokedexView .filters_container Checkbox {
     padding: 0;
     border: none;
     background: transparent;
-    color: #e3eaf3;
+    color: #99aabd;
 }
-
-PokedexView .filters_container Checkbox > .toggle--label {
-    color: #e3eaf3;
-}
+PokedexView .filters_container Checkbox:hover { background: #17273c; }
+PokedexView .filters_container Checkbox:focus { background: #243d5a; }
+PokedexView .filters_container Checkbox.-on { color: #83b7ff; }
+PokedexView .filters_container Checkbox > .toggle--button { color: #30445b; background: #30445b; }
+PokedexView .filters_container Checkbox.-on > .toggle--button { color: #91d49a; background: #1c352d; }
+PokedexView #pokemon_apply_filters { display: none; width: 1fr; }
 
 PokedexView #pokemon_table_panel {
     width: 1fr;
-    min-width: 64;
+    min-width: 0;
     height: 1fr;
-    border: round #334154;
-    background: #09121c;
+    border: round #2b3d54;
+    background: #0e1928;
     margin-right: 1;
-    padding: 0 1;
 }
-
-PokedexView #pokemon_list_header {
-    height: 3;
-    align: left middle;
-}
-
+PokedexView #pokemon_list_header { height: 3; padding: 0 1; align: left middle; }
 PokedexView #pokemon_count {
-    width: auto;
-    height: 1;
-    margin-right: 1;
-    color: #5897ff;
-    text-style: bold;
-}
-
-PokedexView #pokemon_filter_chips {
     width: 1fr;
     height: 1;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-size: 0 0;
-}
-
-PokedexView .filter {
-    width: auto;
-    height: 1;
-    padding: 0 1;
-    margin-right: 1;
+    color: #a8caff;
     text-style: bold;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
 }
-
-PokedexView .filter-generation {
-    color: #80d69f;
-    background: #153527;
-}
-
-PokedexView .filter-type {
-    color: #ffb454;
-    background: #3a2915;
-}
-
-PokedexView .filter-evolution {
-    color: #d2a5fa;
-    background: #31223e;
-}
-
 PokedexView #pokemon_reset {
-    width: 18;
-    min-width: 18;
+    width: 16;
     height: 1;
     min-height: 1;
     border: none;
     background: transparent;
-    color: #5897ff;
-    padding: 0;
+    color: #99aabd;
+    padding: 0 1;
 }
-
 PokedexView #pokemon_reset:hover,
-PokedexView #pokemon_reset:focus {
-    background: #122747;
+PokedexView #pokemon_reset:focus { background: #243d5a; color: #e4ebf5; }
+PokedexView #pokemon_filter_chips {
+    display: none;
+    width: 1fr;
+    height: 1;
+    margin-bottom: 1;
+    padding: 0 1;
+    overflow: auto hidden;
+    scrollbar-size: 0 0;
 }
+PokedexView .filter { width: auto; height: 1; padding: 0 1; margin-right: 1; text-style: bold; }
+PokedexView .filter-generation { color: #91d49a; background: #1c352d; }
+PokedexView .filter-type { color: #efc47d; background: #352c1e; }
+PokedexView .filter-evolution { color: #c9a1f4; background: #2b213e; }
 
 PokedexView PokemonTableHeader,
-PokedexView .pokemon-row {
-    min-width: 59;
-    padding: 0 1;
-    align: left middle;
-}
-
+PokedexView .pokemon-row { min-width: 0; padding: 0 1; align: left middle; }
 PokedexView PokemonTableHeader {
-    height: 3;
-    border-bottom: solid #263443;
-    color: #5897ff;
-    text-style: bold;
+    height: 2;
+    border-bottom: solid #2b3d54;
+    background: #142236;
+    color: #99aabd;
 }
-
 PokedexView #pokemon_list {
     height: 1fr;
-    overflow-x: auto;
+    overflow-x: hidden;
     scrollbar-size: 1 1;
+    scrollbar-background: #0e1928;
+    scrollbar-color: #33445b;
+    scrollbar-color-hover: #7189a8;
+    scrollbar-color-active: #83b7ff;
 }
-
-PokedexView .pokemon-row {
-    height: 4;
-    border-bottom: solid #263443;
-}
-
-PokedexView .pokemon-row:hover {
-    background: #0e1d31;
-}
-
-PokedexView .pokemon-row.selected {
-    background: #122747;
-    border-left: thick #5897ff;
-    padding-left: 0;
-}
-
+PokedexView .pokemon-row { height: 4; border-bottom: solid #1f3045; }
+PokedexView .pokemon-row:hover { background: #15263b; }
+PokedexView .pokemon-row.selected { background: #213750; }
 PokedexView .pokemon-row.selected .pokemon-number,
-PokedexView .pokemon-row.selected .pokemon-name {
-    color: #5897ff;
-    text-style: bold;
-}
-
+PokedexView .pokemon-row.selected .pokemon-name { color: #a8caff; text-style: bold; }
+PokedexView #pokemon_list:focus .pokemon-row.selected { background: #254260; }
 PokedexView PokemonTableHeader Label,
-PokedexView .pokemon-row Label {
-    height: 1;
-    text-wrap: nowrap;
-    text-overflow: ellipsis;
-}
-
-PokedexView .pokemon-number {
-    width: 7;
-    color: #e3eaf3;
-}
-
-PokedexView .pokemon-thumbnail {
-    width: 6;
-    height: 3;
-    margin-right: 1;
-}
-
-PokedexView .pokemon-name {
-    width: 1fr;
-    min-width: 12;
-    color: #e3eaf3;
-}
-
-PokedexView .pokemon-types {
-    width: 14;
-    padding-right: 1;
-    color: #ffb454;
-}
-
-PokedexView .pokemon-generation {
-    width: 5;
-    padding-right: 1;
-    color: #80d69f;
-}
-
-PokedexView .pokemon-stage {
-    width: 12;
-    color: #d2a5fa;
-}
-
+PokedexView .pokemon-row Label { height: 1; text-wrap: nowrap; text-overflow: ellipsis; }
+PokedexView .pokemon-number { width: 7; color: #8499b2; }
+PokedexView .pokemon-thumbnail { width: 6; height: 3; margin-right: 1; color: #8499b2; }
+PokedexView .pokemon-identity { width: 1fr; min-width: 12; height: 2; margin-right: 1; }
+PokedexView PokemonTableHeader .pokemon-identity { height: 1; }
+PokedexView .pokemon-name { width: 1fr; color: #e4ebf5; text-style: bold; }
+PokedexView .pokemon-category { width: 1fr; color: #8499b2; }
+PokedexView .pokemon-types { width: 21; }
+PokedexView .pokemon-generation { width: 5; color: #91d49a; }
+PokedexView .pokemon-stage { width: 14; color: #c9a1f4; }
 PokedexView PokemonTableHeader .pokemon-number,
-PokedexView PokemonTableHeader .pokemon-name,
-PokedexView PokemonTableHeader .pokemon-types,
 PokedexView PokemonTableHeader .pokemon-generation,
-PokedexView PokemonTableHeader .pokemon-stage {
-    color: #5897ff;
-}
+PokedexView PokemonTableHeader .pokemon-stage { color: #99aabd; }
+PokedexView .dense .pokemon-stage { display: none; }
+PokedexView .slim .pokemon-generation { display: none; }
+PokedexView .tiny .pokemon-thumbnail { display: none; }
+PokedexView .tiny .pokemon-number { width: 6; }
+PokedexView .tiny .pokemon-identity { min-width: 8; }
+PokedexView .tiny .pokemon-types { width: 19; }
+PokedexView #pokemon_empty { width: 1fr; height: auto; padding: 2; color: #99aabd; }
+PokedexView #pokemon_details { width: 46; min-width: 38; max-width: 50%; height: 1fr; }
+PokedexView #pokedex_hint { height: 1; width: 1fr; color: #8499b2; text-wrap: nowrap; text-overflow: ellipsis; }
 
-PokedexView #pokemon_empty {
-    width: 1fr;
-    height: auto;
-    padding: 2 1;
-    color: $text-muted;
-}
-
-PokedexView #pokemon_details {
-    width: 42%;
-    min-width: 38;
-    height: 1fr;
-}
-
-PokedexView.compact #pokemon_filters {
-    display: none;
-}
-
-PokedexView.compact.filters-expanded #pokemon_filters {
-    display: block;
-}
-
-PokedexView.compact.filters-expanded #pokemon_details {
-    display: none;
-}
-
-PokedexView.narrow #pokemon_details {
-    display: none;
-}
-
-PokedexView.narrow.details-open #pokemon_table_panel {
-    display: none;
-}
-
+PokedexView.compact #pokemon_filters { display: none; }
+PokedexView.compact.filters-expanded #pokemon_filters { display: block; }
+PokedexView.compact.filters-expanded #pokemon_details,
+PokedexView.compact.filters-expanded #pokemon_open_details { display: none; }
+PokedexView.compact.filters-expanded #pokemon_back,
+PokedexView.compact #pokemon_apply_filters { display: block; }
+PokedexView.narrow { padding: 0 1; }
+PokedexView.narrow #pokemon_details { display: none; }
+PokedexView.narrow #pokemon_table_panel { margin-right: 0; }
+PokedexView.narrow.details-open #pokemon_table_panel,
+PokedexView.narrow.details-open #pokemon_open_details { display: none; }
 PokedexView.narrow.details-open #pokemon_details {
     display: block;
     width: 1fr;
+    max-width: 100%;
+    min-width: 0;
 }
-
-PokedexView.narrow #pokedex_toolbar {
+PokedexView.narrow.details-open #pokemon_back { display: block; }
+PokedexView.narrow.filters-expanded #pokemon_table_panel { display: none; }
+PokedexView.narrow.filters-expanded #pokemon_filters { width: 1fr; margin-right: 0; }
+PokedexView.tiny #pokedex_subtitle { display: none; }
+PokedexView.tiny #pokedex_intro { height: 1; }
+PokedexView.tiny #pokemon_toggle_filters { width: 14; }
+PokedexView.tiny #pokemon_open_details,
+PokedexView.tiny #pokemon_back { width: 10; }
+PokedexView.tiny #pokedex_toolbar {
     height: 6;
     layout: grid;
-    grid-size: 3 2;
-    grid-columns: auto 1fr 1fr;
-    grid-rows: 3 3;
+    grid-size: 2;
+    grid-columns: 1fr 1fr;
+    grid-rows: 3;
 }
+PokedexView.tiny #pokemon_input { column-span: 2; margin-right: 0; }
+PokedexView.tiny #pokemon_sort,
+PokedexView.tiny #pokemon_sort_direction { width: 1fr; }
 
-PokedexView.narrow #pokemon_input {
-    column-span: 3;
-    margin-right: 0;
+PokedexView.short #pokedex_heading { height: 1; margin-bottom: 1; }
+PokedexView.short #pokedex_intro { height: 1; }
+PokedexView.short #pokedex_subtitle,
+PokedexView.short #pokedex_hint { display: none; }
+PokedexView.short #pokedex_heading Button {
+    height: 1;
+    min-height: 1;
+    padding: 0 1;
+    border: none;
 }
-
-PokedexView.narrow #pokemon_sort,
-PokedexView.narrow #pokemon_sort_direction {
-    width: 1fr;
+PokedexView.short #pokedex_toolbar { height: 1; }
+PokedexView.short #pokedex_toolbar Input,
+PokedexView.short #pokedex_toolbar Select,
+PokedexView.short #pokedex_toolbar SelectCurrent {
+    height: 1;
+    min-height: 1;
+    border: none;
+    padding: 0 1;
 }
-
-PokedexView.narrow.filters-expanded #pokemon_table_panel {
-    display: none;
-}
-
-PokedexView.narrow.filters-expanded #pokemon_filters {
-    width: 1fr;
-}
-
-PokedexView.narrow #pokemon_table_panel {
-    min-width: 0;
-    margin-right: 0;
-}
+PokedexView.short.tiny #pokedex_toolbar { height: 2; grid-rows: 1; }
+PokedexView.short #pokemon_list_header { height: 1; }
+PokedexView.short PokemonTableHeader { height: 1; border: none; }
+PokedexView.short PokemonDetails #details_summary { height: 6; margin-top: 0; }
+PokedexView.short PokemonDetails .details-sprite,
+PokedexView.short PokemonDetails #details_metadata { height: 5; }

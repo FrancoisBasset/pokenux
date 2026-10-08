@@ -20,6 +20,8 @@ from textual.widgets import Button, Label, TabbedContent, TabPane, Tabs
 
 from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.models.tcg.card import Card
+from pokenux.textual.utils.pokemon_types import TYPE_COLORS, type_badges
+from pokenux.textual.widgets.pokemon_art import PokemonArt
 from pokenux.textual.widgets.remote_image import RemoteImage
 
 
@@ -37,19 +39,6 @@ def _roman(number: int) -> str:
     return generations[number - 1] if 1 <= number <= len(generations) else str(number)
 
 
-_TYPE_COLORS = {
-    "Feu": "#ff9c3d",
-    "Eau": "#65b4ff",
-    "Plante": "#82c96b",
-    "Électrik": "#f5d65c",
-    "Poison": "#c488d5",
-    "Spectre": "#a193d5",
-    "Dragon": "#b198ef",
-    "Glace": "#8adddf",
-    "Fée": "#ef9dcb",
-}
-
-
 class PokemonDetails(VerticalScroll):
     """Details that follow the currently selected table row."""
 
@@ -59,82 +48,123 @@ class PokemonDetails(VerticalScroll):
     PokemonDetails {
         height: 1fr;
         width: 1fr;
-        border: round #334154;
-        background: #09121c;
-        color: #e3eaf3;
+        border: round #2c4059;
+        background: #111d2d;
+        color: #e4ebf5;
         padding: 0 1;
+        scrollbar-size: 1 1;
+        scrollbar-background: #111d2d;
+        scrollbar-color: #344d6c;
+        scrollbar-color-hover: #83b7ff;
+    }
+
+    PokemonDetails:focus-within {
+        border: round #577aa5;
     }
 
     PokemonDetails .details-empty {
         width: 1fr;
         height: 1fr;
         content-align: center middle;
-        color: #8795a8;
+        color: #99aabd;
+        padding: 2;
     }
 
     PokemonDetails #details_heading {
-        height: 3;
-        border-bottom: solid #263443;
+        height: 2;
         padding-top: 1;
     }
 
-    PokemonDetails #details_title {
+    PokemonDetails #details_number {
         width: 1fr;
-        height: 1;
+        color: #83b7ff;
         text-style: bold;
     }
 
-    PokemonDetails .details-star {
-        width: 2;
-        color: #aab3be;
+    PokemonDetails #details_generation {
+        width: auto;
+        color: #99aabd;
     }
 
     PokemonDetails #details_summary {
-        height: 11;
+        height: 8;
         margin-top: 1;
     }
 
     PokemonDetails .details-sprite {
-        width: 48%;
-        height: 10;
+        width: 42%;
+        height: 7;
+        background: #17283c;
         content-align: center middle;
     }
 
     PokemonDetails #details_metadata {
         width: 1fr;
-        height: 10;
+        height: 7;
         padding: 1 0 0 1;
-        border-left: solid #263443;
     }
 
-    PokemonDetails .metadata-row {
-        height: 2;
-    }
-
-    PokemonDetails .metadata-label {
-        width: 11;
-        color: #aab3be;
-    }
-
-    PokemonDetails .metadata-value {
+    PokemonDetails #details_title {
         width: 1fr;
         height: auto;
+        text-style: bold;
+    }
+
+    PokemonDetails #details_category {
+        width: 1fr;
+        height: auto;
+        color: #99aabd;
+        margin-bottom: 1;
+    }
+
+    PokemonDetails #details_types {
+        height: auto;
+        width: 1fr;
+    }
+
+    PokemonDetails #details_measurements {
+        height: 3;
+        background: #17283c;
+        padding: 0;
+    }
+
+    PokemonDetails .measurement {
+        width: 1fr;
+        height: 2;
+        align: center middle;
+    }
+
+    PokemonDetails .measurement-divider {
+        border-left: solid #304660;
+    }
+
+    PokemonDetails .measurement-label {
+        width: 1fr;
+        height: 1;
+        color: #99aabd;
+        content-align: center middle;
+    }
+
+    PokemonDetails .measurement-value {
+        width: 1fr;
+        height: 1;
+        content-align: center middle;
+        text-style: bold;
     }
 
     PokemonDetails #details_chain {
         height: 6;
-        border-top: solid #263443;
-        border-bottom: solid #263443;
     }
 
     PokemonDetails .details-section-title {
-        color: #5897ff;
+        color: #83b7ff;
+        text-style: bold;
         height: 1;
         margin-top: 1;
     }
 
     PokemonDetails .evolution-strip {
-        height: 3;
+        height: 4;
         scrollbar-size-horizontal: 1;
     }
 
@@ -154,10 +184,11 @@ class PokemonDetails(VerticalScroll):
     PokemonDetails .evolution-name {
         width: auto;
         height: 1;
+        color: #99aabd;
     }
 
     PokemonDetails .evolution-current {
-        color: #5897ff;
+        color: #e4ebf5;
         text-style: bold;
     }
 
@@ -165,21 +196,36 @@ class PokemonDetails(VerticalScroll):
         width: 3;
         height: 3;
         content-align: center middle;
-        color: #8795a8;
+        color: #5c7796;
     }
 
     PokemonDetails #details_tabs {
         height: 1fr;
-        min-height: 17;
+        min-height: 12;
     }
 
     PokemonDetails #details_tabs > ContentTabs {
-        height: 3;
+        height: 2;
     }
 
+    PokemonDetails #details_tabs Tabs { height: 2; }
+
     PokemonDetails #details_tabs Tab {
-        height: 3;
+        height: 1;
         padding: 0 1;
+        color: #99aabd;
+        background: #111d2d;
+    }
+
+    PokemonDetails #details_tabs Tab.-active {
+        color: #e4ebf5;
+        text-style: bold;
+        background: #1d3450;
+    }
+
+    PokemonDetails #details_tabs Underline > .underline--bar {
+        color: #83b7ff;
+        background: #263b53;
     }
 
     PokemonDetails #details_tabs > ContentSwitcher {
@@ -194,31 +240,38 @@ class PokemonDetails(VerticalScroll):
     PokemonDetails .details-pane {
         height: 1fr;
         padding: 0 1;
+        scrollbar-size: 1 1;
+    }
+
+    PokemonDetails .profile-value {
+        height: auto;
+        color: #e4ebf5;
     }
 
     PokemonDetails .cards-heading {
         height: auto;
         margin: 1 0;
-        color: #5897ff;
+        color: #83b7ff;
+        text-style: bold;
     }
 
     PokemonDetails .card-preview-row {
-        height: 12;
+        height: 13;
     }
 
     PokemonDetails .card-preview {
         width: 1fr;
-        height: 12;
-        margin-right: 1;
+        height: 13;
+        padding: 0 1 0 0;
     }
 
     PokemonDetails .card-art {
         width: 1fr;
-        height: 9;
+        height: 10;
         content-align: center middle;
-        border: round #a17f40;
-        background: #29241d;
-        color: #d8b471;
+        border: round #756345;
+        background: #232b35;
+        color: #e5c185;
     }
 
     PokemonDetails .card-name {
@@ -231,7 +284,7 @@ class PokemonDetails(VerticalScroll):
     PokemonDetails .card-id {
         height: 1;
         width: 1fr;
-        color: #8795a8;
+        color: #99aabd;
         text-overflow: ellipsis;
         text-wrap: nowrap;
     }
@@ -240,14 +293,21 @@ class PokemonDetails(VerticalScroll):
         width: 1fr;
         height: 3;
         margin-top: 1;
-        border: round #365d91;
-        color: #5897ff;
-        background: #0d1826;
+        border: round #436a98;
+        color: #b9d8ff;
+        background: #1d3450;
+        text-style: bold;
+    }
+
+    PokemonDetails .show-cards:hover,
+    PokemonDetails .show-cards:focus {
+        background: #29476a;
+        border: round #83b7ff;
     }
 
     PokemonDetails .cards-grid {
-        grid-size: 3;
-        grid-columns: 1fr 1fr 1fr;
+        grid-size: 2;
+        grid-columns: 1fr 1fr;
         grid-rows: auto;
         height: auto;
     }
@@ -255,7 +315,7 @@ class PokemonDetails(VerticalScroll):
     PokemonDetails .details-note {
         height: auto;
         margin: 1 0;
-        color: #8795a8;
+        color: #99aabd;
     }
 
     PokemonDetails .stat-row {
@@ -264,21 +324,34 @@ class PokemonDetails(VerticalScroll):
     }
 
     PokemonDetails .stat-name {
-        width: 15;
+        width: 13;
+        color: #99aabd;
     }
 
     PokemonDetails .stat-value {
-        width: 5;
-        color: #5897ff;
+        width: 4;
+        text-style: bold;
     }
 
     PokemonDetails .stat-bar {
         width: 1fr;
+        text-wrap: nowrap;
+        overflow-x: hidden;
+    }
+
+    PokemonDetails .stat-total {
+        height: 3;
+        border-top: solid #263b53;
+        padding-top: 1;
+        text-style: bold;
+        color: #e4ebf5;
     }
 
     PokemonDetails .evolution-detail {
         height: auto;
         margin: 1 0;
+        padding: 0 1;
+        border-left: thick #436a98;
     }
     """
 
@@ -290,6 +363,7 @@ class PokemonDetails(VerticalScroll):
         self._series_cache: object | None = None
         self._card_index: dict[str, list[Card]] = {}
         self._focus_request: int = 0
+        self._pending_focus: tuple[int, Widget | None, bool] | None = None
 
     def set_pokemon(self, pokemon: Pokemon | None) -> None:
         """Select a Pokémon synchronously; Textual schedules the DOM update."""
@@ -307,36 +381,50 @@ class PokemonDetails(VerticalScroll):
     def action_show_tcg(self) -> None:
         self.show_tcg()
 
-    def focus_details(self) -> None:
+    def focus_details(self, *, overview: bool = False) -> None:
         self._focus_request += 1
         if self.pokemon is not None and self.is_mounted:
             # The view may have just revealed this panel after it was hidden.
             # Wait for its new layout before focusing and revealing the tabs.
-            _ = self.call_after_refresh(
-                self._focus_tabs, self._focus_request, self.app.focused
-            )
+            self._pending_focus = (self._focus_request, self.app.focused, overview)
+            _ = self.call_after_refresh(self._focus_tabs, *self._pending_focus)
         else:
             _ = self.focus()
 
     def cancel_pending_focus(self) -> None:
         self._focus_request += 1
+        self._pending_focus = None
 
-    def _focus_tabs(self, request: int, expected_focus: Widget | None) -> None:
+    def on_resize(self) -> None:
+        # Revealing a hidden panel can complete after the first refresh callback.
+        # Its resize event gives us the actual layout without a timer or polling.
+        if self._pending_focus is not None:
+            _ = self.call_after_refresh(self._focus_tabs, *self._pending_focus)
+
+    def _focus_tabs(
+        self, request: int, expected_focus: Widget | None, overview: bool = False
+    ) -> None:
         if (
             request == self._focus_request
+            and self._pending_focus is not None
             and self.pokemon is not None
             and self.is_mounted
             and self.display
             and self.region.height > 0
             and (self.app.focused is expected_focus or self.app.focused is None)
         ):
-            _ = self.query_one(Tabs).focus()
-            _ = self.scroll_to_widget(
-                self.query_one("#details_tabs", TabbedContent),
-                animate=False,
-                top=True,
-                force=True,
-            )
+            self._pending_focus = None
+            if overview:
+                _ = self.focus()
+                self.scroll_home(animate=False, force=True)
+            else:
+                _ = self.query_one(Tabs).focus()
+                _ = self.scroll_to_widget(
+                    self.query_one("#details_tabs", TabbedContent),
+                    animate=False,
+                    top=True,
+                    force=True,
+                )
 
     def _cards(self, pokemon: Pokemon) -> list[Card]:
         # tcg_library holds the installed language's collection. Import lazily so
@@ -370,7 +458,7 @@ class PokemonDetails(VerticalScroll):
                 pokemon = pokedex.get_pokemon_by_id(pokedex_id)
             except OSError, ValueError:
                 pokemon = None
-        return RemoteImage(
+        return PokemonArt(
             pokemon.sprites.regular if pokemon is not None else None,
             classes=classes,
         )
@@ -438,61 +526,61 @@ class PokemonDetails(VerticalScroll):
             return
 
         cards = self._cards(pokemon)
+        accent = TYPE_COLORS.get(
+            str(_field(pokemon.types[0], "name")) if pokemon.types else "", "#83b7ff"
+        )
         with Horizontal(id="details_heading"):
-            title = Text(f"#{pokemon.pokedex_id:04d} ", style="#5897ff bold")
-            _ = title.append(pokemon.name.fr.upper(), style="#e3eaf3 bold")
-            yield Label(title, id="details_title")
-            yield Label("☆", classes="details-star")
+            yield Label(f"N° {pokemon.pokedex_id:04d}", id="details_number")
+            yield Label(
+                f"GÉNÉRATION {_roman(pokemon.generation)}", id="details_generation"
+            )
 
         with Horizontal(id="details_summary"):
             yield self._sprite(pokemon.pokedex_id, "details-sprite")
             with Vertical(id="details_metadata"):
-                types = Text()
-                for index, pokemon_type in enumerate(pokemon.types):
-                    name = str(_field(pokemon_type, "name", "?"))
-                    if index:
-                        _ = types.append(" / ")
-                    _ = types.append(name, style=_TYPE_COLORS.get(name, "#e3eaf3"))
-                for label, value in (
-                    ("Type", types),
-                    ("Génération", Text(_roman(pokemon.generation), style="#74cf98")),
-                    ("Taille", pokemon.height),
-                    ("Poids", pokemon.weight),
-                ):
-                    with Horizontal(classes="metadata-row"):
-                        yield Label(label, classes="metadata-label")
-                        yield Label(value, classes="metadata-value", markup=False)
+                yield Label(pokemon.name.fr, id="details_title", markup=False)
+                yield Label(pokemon.category, id="details_category", markup=False)
+                yield Label(
+                    type_badges(
+                        str(_field(type_, "name", "?")) for type_ in pokemon.types
+                    ),
+                    id="details_types",
+                )
 
-        branching = self._branching(pokemon)
-        with Vertical(id="details_chain"):
-            yield Label(
-                "Évolutions possibles" if branching else "Chaîne d’évolution",
-                classes="details-section-title",
-            )
-            with HorizontalScroll(classes="evolution-strip"):
-                for index, (pokedex_id, name, _) in enumerate(
-                    self._evolution_nodes(pokemon)
-                ):
-                    if index:
-                        yield Label(
-                            "·" if branching else "→", classes="evolution-arrow"
-                        )
-                    with Horizontal(classes="evolution-node"):
-                        yield self._sprite(pokedex_id, "evolution-sprite")
-                        classes = "evolution-name"
-                        if pokedex_id == pokemon.pokedex_id:
-                            classes += " evolution-current"
-                        yield Label(name, classes=classes, markup=False)
+        with Horizontal(id="details_measurements"):
+            for index, (label, value) in enumerate(
+                (("TAILLE", pokemon.height), ("POIDS", pokemon.weight))
+            ):
+                classes = "measurement measurement-divider" if index else "measurement"
+                with Vertical(classes=classes):
+                    yield Label(value, classes="measurement-value", markup=False)
+                    yield Label(label, classes="measurement-label")
 
         with TabbedContent(id="details_tabs", initial=self._active_tab):
             with TabPane("Infos", id="pokemon_infos"):
                 with VerticalScroll(classes="details-pane"):
+                    yield Label("Talents", classes="details-section-title")
+                    talents = Text()
+                    for index, talent in enumerate(pokemon.talents):
+                        if index:
+                            _ = talents.append(" · ", style="#5c7796")
+                        _ = talents.append(talent.name)
+                        if talent.hidden:
+                            _ = talents.append(" (caché)", style="#99aabd")
+                    yield Label(talents or "Non renseignés", classes="profile-value")
+                    yield Label("Groupes d’œufs", classes="details-section-title")
                     yield Label(
-                        f"Cartes TCG associées · {len(cards)}", classes="cards-heading"
+                        " · ".join(pokemon.egg_groups or []) or "Non renseignés",
+                        classes="profile-value",
+                        markup=False,
+                    )
+                    yield Label(
+                        f"Cartes à collectionner · {len(cards)}",
+                        classes="cards-heading",
                     )
                     if cards:
                         with Horizontal(classes="card-preview-row"):
-                            for card in cards[:4]:
+                            for card in cards[:2]:
                                 yield self._card_preview(card)
                         yield Button(
                             "Voir toutes les cartes →",
@@ -520,19 +608,37 @@ class PokemonDetails(VerticalScroll):
                         value = cast(int, getattr(pokemon.stats, attribute))
                         total += value
                         filled = max(1, min(10, round(value / 255 * 10)))
-                        bar = Text("━" * filled, style="#5897ff")
-                        _ = bar.append("━" * (10 - filled), style="#283749")
+                        bar = Text("━" * filled, style=accent)
+                        _ = bar.append("━" * (10 - filled), style="#30435a")
                         with Horizontal(classes="stat-row"):
                             yield Label(name, classes="stat-name")
                             yield Label(str(value), classes="stat-value")
                             yield Label(bar, classes="stat-bar")
-                    yield Label(f"Total : {total}", classes="details-note")
+                    yield Label(f"TOTAL  {total}", classes="stat-total")
 
-            with TabPane("Évolution", id="pokemon_evolution"):
+            with TabPane("Évol.", id="pokemon_evolution"):
                 with VerticalScroll(classes="details-pane"):
-                    yield Label(
-                        pokemon.category, classes="details-section-title", markup=False
-                    )
+                    branching = self._branching(pokemon)
+                    with Vertical(id="details_chain"):
+                        yield Label(
+                            "Évolutions possibles" if branching else "Lignée évolutive",
+                            classes="details-section-title",
+                        )
+                        with HorizontalScroll(classes="evolution-strip"):
+                            for index, (pokedex_id, name, _) in enumerate(
+                                self._evolution_nodes(pokemon)
+                            ):
+                                if index:
+                                    yield Label(
+                                        "·" if branching else "→",
+                                        classes="evolution-arrow",
+                                    )
+                                with Horizontal(classes="evolution-node"):
+                                    yield self._sprite(pokedex_id, "evolution-sprite")
+                                    classes = "evolution-name"
+                                    if pokedex_id == pokemon.pokedex_id:
+                                        classes += " evolution-current"
+                                    yield Label(name, classes=classes, markup=False)
                     yield Label(f"Stade : {pokemon.stage}", classes="details-note")
                     for heading, entries in (
                         ("Pré-évolutions", pokemon.evolution.pre or []),
@@ -544,7 +650,7 @@ class PokemonDetails(VerticalScroll):
                                 name = str(_field(entry, "name"))
                                 condition = str(_field(entry, "condition", ""))
                                 yield Label(
-                                    f"{name}\n{condition}",
+                                    f"{name}\n{condition}" if condition else name,
                                     classes="evolution-detail",
                                     markup=False,
                                 )
