@@ -13,6 +13,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Button, Label
 
+from pokenux.services.localization import language, text
 from pokenux.models.tcg.card import Card
 from pokenux.models.tcg.serie import Serie
 from pokenux.models.tcg.set import Set
@@ -32,9 +33,11 @@ def _artwork_url(image: str) -> str | None:
 
 def _release_date(value: str) -> str:
     try:
-        return date.fromisoformat(value).strftime("%d/%m/%Y")
+        return date.fromisoformat(value).strftime(
+            "%d/%m/%Y" if language() == "fr" else "%Y-%m-%d"
+        )
     except ValueError:
-        return value or "Non renseignée"
+        return value or text("Non renseignée", "Not available")
 
 
 class TcgCardDetails(VerticalScroll):
@@ -42,7 +45,9 @@ class TcgCardDetails(VerticalScroll):
 
     can_focus: bool = True
     BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("escape", "back", "Retour aux cartes", show=False)
+        Binding(
+            "escape", "back", text("Retour aux cartes", "Back to cards"), show=False
+        )
     ]
     _revision: reactive[int] = reactive(0, recompose=True)
 
@@ -195,6 +200,9 @@ class TcgCardDetails(VerticalScroll):
         if previous_id != (card.id if card else None):
             self.scroll_home(animate=False)
 
+    def refresh_language(self) -> None:
+        self._revision += 1
+
     @staticmethod
     def _metadata(label: str, value: str | Text) -> Horizontal:
         return Horizontal(
@@ -206,26 +214,42 @@ class TcgCardDetails(VerticalScroll):
     @override
     def compose(self) -> ComposeResult:
         with Horizontal(classes="tcg-details-actions"):
-            yield Button("← Retour aux cartes", id="tcg_details_back")
+            yield Button(
+                text("← Retour aux cartes", "← Back to cards"), id="tcg_details_back"
+            )
 
         card = self.card
         if self._loading:
             yield Label(
-                "Chargement des informations de la carte…",
+                text(
+                    "Chargement des informations de la carte…",
+                    "Loading card information…",
+                ),
                 classes="tcg-details-note tcg-details-loading",
             )
         if self._error:
             yield Label(
-                f"Informations indisponibles. {self._error}",
+                text(
+                    "Informations indisponibles. {error}",
+                    "Information unavailable. {error}",
+                    error=self._error,
+                ),
                 classes="tcg-details-note tcg-details-error",
                 markup=False,
             )
-            yield Button("Réessayer", id="tcg_details_retry", disabled=self._loading)
+            yield Button(
+                text("Réessayer", "Retry"),
+                id="tcg_details_retry",
+                disabled=self._loading,
+            )
 
         if card is None:
             if not self._loading and not self._error:
                 yield Label(
-                    "▤\n\nSélectionnez une carte\npour découvrir son illustration\net ses informations.",
+                    text(
+                        "▤\n\nSélectionnez une carte\npour découvrir son illustration\net ses informations.",
+                        "▤\n\nSelect a card\nto see its artwork\nand details.",
+                    ),
                     classes="tcg-details-empty",
                 )
             return
@@ -238,42 +262,57 @@ class TcgCardDetails(VerticalScroll):
         yield RemoteImage(
             _artwork_url(card.image),
             classes="tcg-details-art",
-            placeholder="▤\nIllustration indisponible",
+            placeholder=text("▤\nIllustration indisponible", "▤\nArtwork unavailable"),
         )
 
         with Vertical(classes="tcg-details-section"):
-            yield Label("CARTE", classes="tcg-details-section-title")
+            yield Label(text("CARTE", "CARD"), classes="tcg-details-section-title")
             yield self._metadata(
-                "PV / HP",
+                text("PV / HP", "HP"),
                 Text(str(card.hp), style="#5897ff bold")
                 if card.hp is not None
-                else "Non renseignés",
+                else text("Non renseignés", "Not available"),
             )
-            yield self._metadata("Type", " / ".join(card.types) or "Non renseigné")
-            yield self._metadata("Illustrateur", card.illustrator or "Non renseigné")
+            yield self._metadata(
+                "Type", " / ".join(card.types) or text("Non renseigné", "Not available")
+            )
+            yield self._metadata(
+                text("Illustrateur", "Illustrator"),
+                card.illustrator or text("Non renseigné", "Not available"),
+            )
             if card.category:
-                yield self._metadata("Catégorie", card.category)
+                yield self._metadata(text("Catégorie", "Category"), card.category)
             if card.rarity:
-                yield self._metadata("Rareté", card.rarity)
+                yield self._metadata(text("Rareté", "Rarity"), card.rarity)
 
         with Vertical(classes="tcg-details-section"):
             yield Label("COLLECTION", classes="tcg-details-section-title")
             yield self._metadata(
-                "Série", self.serie.name if self.serie else "Non renseignée"
+                text("Série", "Series"),
+                self.serie.name
+                if self.serie
+                else text("Non renseignée", "Not available"),
             )
             yield self._metadata(
-                "Extension", self.card_set.name if self.card_set else card.set_id
+                text("Extension", "Set"),
+                self.card_set.name if self.card_set else card.set_id,
             )
             if self.card_set:
                 yield self._metadata(
-                    "Sortie", _release_date(self.card_set.release_date)
+                    text("Sortie", "Released"),
+                    _release_date(self.card_set.release_date),
                 )
                 if self.card_set.abbreviation:
-                    yield self._metadata("Abréviation", self.card_set.abbreviation)
+                    yield self._metadata(
+                        text("Abréviation", "Abbreviation"), self.card_set.abbreviation
+                    )
 
         if not card.details_loaded and not self._loading and not self._error:
             yield Label(
-                "Les informations détaillées de cette carte ne sont pas disponibles.",
+                text(
+                    "Les informations détaillées de cette carte ne sont pas disponibles.",
+                    "Detailed information for this card is unavailable.",
+                ),
                 classes="tcg-details-note",
             )
 

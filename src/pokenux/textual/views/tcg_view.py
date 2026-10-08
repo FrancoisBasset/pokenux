@@ -16,11 +16,14 @@ from textual.widgets import Button, DataTable, Input, Label, Select, Tree
 from textual.worker import get_current_worker
 from textual.widgets.tree import TreeNode
 
+from pokenux.services.localization import text
 from pokenux.models.tcg.card import Card
 from pokenux.models.tcg.serie import Serie
 from pokenux.models.tcg.set import Set
 from pokenux.services import tcg_library, user_data
 from pokenux.services.api.tcgdex import TCGdexError
+from pokenux.textual.utils.translator import refresh_bindings
+from pokenux.textual.utils.navigation import is_active_view
 from pokenux.textual.widgets.tcg_card_details import TcgCardDetails
 
 
@@ -31,11 +34,21 @@ def parse_hp(value: str) -> tuple[int | None, int | None]:
         return None, None
     match = re.fullmatch(r"([0-9]+)(?:\s*[-–]\s*([0-9]+))?", value)
     if match is None:
-        raise ValueError("HP : entrez un nombre (120) ou une plage (50-100).")
+        raise ValueError(
+            text(
+                "HP : entrez un nombre (120) ou une plage (50-100).",
+                "HP: enter a number (120) or a range (50-100).",
+            )
+        )
     minimum = int(match[1])
     maximum = int(match[2]) if match[2] is not None else minimum
     if minimum > maximum:
-        raise ValueError("HP : le minimum doit être inférieur ou égal au maximum.")
+        raise ValueError(
+            text(
+                "HP : le minimum doit être inférieur ou égal au maximum.",
+                "HP: the minimum must not exceed the maximum.",
+            )
+        )
     return minimum, maximum
 
 
@@ -58,11 +71,11 @@ class SearchFilters(TypedDict):
 class TcgView(Vertical):
     PAGE_SIZE = 100
     BINDINGS = [
-        Binding("/", "focus_search", "Rechercher"),
-        Binding("f", "focus_catalogue", "Séries"),
-        Binding("ctrl+f", "toggle_filters", "Filtres"),
-        Binding("r", "reset_filters", "Réinitialiser"),
-        Binding("escape", "focus_cards", "Cartes"),
+        Binding("/", "focus_search", text("Rechercher", "Search")),
+        Binding("f", "focus_catalogue", text("Séries", "Series")),
+        Binding("ctrl+f", "toggle_filters", text("Filtres", "Filters")),
+        Binding("r", "reset_filters", text("Réinitialiser", "Reset")),
+        Binding("escape", "focus_cards", text("Cartes", "Cards")),
     ]
 
     class SearchFinished(Message):
@@ -92,6 +105,7 @@ class TcgView(Vertical):
         self._details_timer: Timer | None = None
         self._selected: Card | None = None
         self._requested_language: str | None = None
+        self._active_language = "en"
         self._language_note = ""
         self._search_note = ""
         self._series: dict[str, Serie] = {}
@@ -100,45 +114,67 @@ class TcgView(Vertical):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="tcg_heading"):
-            yield Label("▤  CARTES TCG", id="tcg_title")
+            yield Label(text("▤  CARTES TCG", "▤  TCG CARDS"), id="tcg_title")
             yield Label("", id="tcg_catalogue_count", markup=False)
         with Horizontal(id="tcg_toolbar"):
             yield Button(
-                "Séries",
+                text("Séries", "Series"),
                 id="tcg_browse",
-                tooltip="Parcourir les séries et extensions (f)",
+                tooltip=text(
+                    "Parcourir les séries et extensions (f)",
+                    "Browse series and sets (f)",
+                ),
             )
-            yield Input(placeholder="Rechercher une carte par nom…", id="tcg_name")
+            yield Input(
+                placeholder=text(
+                    "Rechercher une carte par nom…", "Search for a card by name…"
+                ),
+                id="tcg_name",
+            )
             yield Button(
-                "Filtres",
+                text("Filtres", "Filters"),
                 id="tcg_toggle_filters",
-                tooltip="Afficher les filtres (Ctrl+F)",
+                tooltip=text("Afficher les filtres (Ctrl+F)", "Show filters (Ctrl+F)"),
             )
             yield Button(
-                "↻ Effacer",
+                text("↻ Effacer", "↻ Clear"),
                 id="tcg_reset",
-                tooltip="Réinitialiser tous les filtres (r)",
+                tooltip=text(
+                    "Réinitialiser tous les filtres (r)", "Reset all filters (r)"
+                ),
             )
         with Horizontal(id="tcg_filters"):
             with Vertical(classes="tcg-field", id="tcg_hp_field"):
-                yield Label("HP / PV", classes="tcg-field-label")
-                yield Input(placeholder="120 ou 50-100", id="tcg_hp")
+                yield Label(text("HP / PV", "HP"), classes="tcg-field-label")
+                yield Input(
+                    placeholder=text("120 ou 50-100", "120 or 50-100"), id="tcg_hp"
+                )
             with Vertical(classes="tcg-field", id="tcg_type_field"):
-                yield Label("Type de carte", classes="tcg-field-label")
+                yield Label(
+                    text("Type de carte", "Card type"), classes="tcg-field-label"
+                )
                 yield Select(
-                    [("Tous les types", "")], value="", allow_blank=False, id="tcg_type"
+                    [(text("Tous les types", "All types"), "")],
+                    value="",
+                    allow_blank=False,
+                    id="tcg_type",
                 )
             with Vertical(classes="tcg-field", id="tcg_illustrator_field"):
-                yield Label("Illustrateur", classes="tcg-field-label")
-                yield Input(placeholder="Nom de l’artiste…", id="tcg_illustrator")
+                yield Label(
+                    text("Illustrateur", "Illustrator"), classes="tcg-field-label"
+                )
+                yield Input(
+                    placeholder=text("Nom de l’artiste…", "Artist’s name…"),
+                    id="tcg_illustrator",
+                )
             with Vertical(classes="tcg-field", id="tcg_sort_field"):
-                yield Label("Trier par", classes="tcg-field-label")
+                yield Label(text("Trier par", "Sort by"), classes="tcg-field-label")
                 yield Select(
                     [
-                        ("Catalogue", "catalogue"),
-                        ("Nom A → Z", "name"),
-                        ("HP croissants", "hp_asc"),
-                        ("HP décroissants", "hp_desc"),
+                        (text("Catalogue", "Catalogue"), "catalogue"),
+                        (text("Nom A → Z", "Name A → Z"), "name"),
+                        (text("HP croissants", "HP ascending"), "hp_asc"),
+                        (text("HP décroissants", "HP descending"), "hp_desc"),
                     ],
                     value="catalogue",
                     allow_blank=False,
@@ -146,19 +182,36 @@ class TcgView(Vertical):
                 )
         with Horizontal(id="tcg_content"):
             with Vertical(id="tcg_catalogue_panel"):
-                yield Label("SÉRIES & EXTENSIONS", classes="tcg-panel-title")
+                yield Label(
+                    text("SÉRIES & EXTENSIONS", "SERIES & SETS"),
+                    classes="tcg-panel-title",
+                )
                 yield Tree(
-                    "Toutes les cartes", data=CatalogueScope(), id="tcg_catalogue"
+                    text("Toutes les cartes", "All cards"),
+                    data=CatalogueScope(),
+                    id="tcg_catalogue",
                 )
                 yield Label(
-                    "Entrée : choisir · Espace : développer", id="tcg_tree_hint"
+                    text(
+                        "Entrée : choisir · Espace : développer",
+                        "Enter: select · Space: expand",
+                    ),
+                    id="tcg_tree_hint",
                 )
             with Vertical(id="tcg_results_panel"):
-                yield Label("Toutes les cartes", id="tcg_scope", markup=False)
+                yield Label(
+                    text("Toutes les cartes", "All cards"), id="tcg_scope", markup=False
+                )
                 yield Label("", id="tcg_scope_info", markup=False)
                 with Horizontal(id="tcg_result_heading"):
-                    yield Label("Chargement…", id="tcg_count", markup=False)
-                    yield Button("Voir la fiche →", id="tcg_open_card", disabled=True)
+                    yield Label(
+                        text("Chargement…", "Loading…"), id="tcg_count", markup=False
+                    )
+                    yield Button(
+                        text("Voir la fiche →", "View card →"),
+                        id="tcg_open_card",
+                        disabled=True,
+                    )
                 yield DataTable(
                     id="tcg_cards",
                     cursor_type="row",
@@ -167,29 +220,117 @@ class TcgView(Vertical):
                 )
                 yield Label("", id="tcg_empty", markup=False)
                 with Horizontal(id="tcg_pagination"):
-                    yield Button("← Précédent", id="tcg_previous", disabled=True)
+                    yield Button(
+                        text("← Précédent", "← Previous"),
+                        id="tcg_previous",
+                        disabled=True,
+                    )
                     yield Label("Page 1 / 1", id="tcg_page")
-                    yield Button("Suivant →", id="tcg_next", disabled=True)
+                    yield Button(
+                        text("Suivant →", "Next →"), id="tcg_next", disabled=True
+                    )
             yield TcgCardDetails()
         with Horizontal(id="tcg_status_bar"):
             yield Label("", id="tcg_status", markup=False)
-            yield Button("Réessayer", id="tcg_retry")
+            yield Button(text("Réessayer", "Retry"), id="tcg_retry")
 
     def on_mount(self) -> None:
         table = self.query_one("#tcg_cards", DataTable)
-        for label, key, width in (
-            ("N°", "number", 13),
-            ("Carte", "name", 25),
-            ("HP", "hp", 5),
-            ("Type", "type", 15),
-            ("Extension", "set", 24),
-            ("Illustrateur", "illustrator", 24),
-        ):
-            table.add_column(label, key=key, width=width)
+        self._add_columns()
         self.query_one("#tcg_retry", Button).display = False
         self._ready = True
-        self._load_catalogue()
+        self.refresh_language()
         self.call_after_refresh(table.focus)
+
+    def _add_columns(self) -> None:
+        table = self.query_one("#tcg_cards", DataTable)
+        for label, key, width in (
+            ("N°", "number", 13),
+            (text("Carte", "Card"), "name", 25),
+            ("HP", "hp", 5),
+            ("Type", "type", 15),
+            (text("Extension", "Set"), "set", 24),
+            (text("Illustrateur", "Illustrator"), "illustrator", 24),
+        ):
+            table.add_column(label, key=key, width=width)
+
+    def refresh_language(self) -> None:
+        if not self._ready:
+            return
+        refresh_bindings(
+            self,
+            {
+                "focus_search": ("Rechercher", "Search"),
+                "focus_catalogue": ("Séries", "Series"),
+                "toggle_filters": ("Filtres", "Filters"),
+                "reset_filters": ("Réinitialiser", "Reset"),
+                "focus_cards": ("Cartes", "Cards"),
+            },
+        )
+        for selector, labels in {
+            "#tcg_title": ("▤  CARTES TCG", "▤  TCG CARDS"),
+            "#tcg_hp_field Label": ("HP / PV", "HP"),
+            "#tcg_type_field Label": ("Type de carte", "Card type"),
+            "#tcg_illustrator_field Label": ("Illustrateur", "Illustrator"),
+            "#tcg_sort_field Label": ("Trier par", "Sort by"),
+            "#tcg_catalogue_panel .tcg-panel-title": (
+                "SÉRIES & EXTENSIONS",
+                "SERIES & SETS",
+            ),
+            "#tcg_tree_hint": (
+                "Entrée : choisir · Espace : développer",
+                "Enter: select · Space: expand",
+            ),
+        }.items():
+            self.query_one(selector, Label).update(text(*labels))
+        for identifier, labels in {
+            "tcg_browse": ("Séries", "Series"),
+            "tcg_toggle_filters": ("Filtres", "Filters"),
+            "tcg_reset": ("↻ Effacer", "↻ Clear"),
+            "tcg_open_card": ("Voir la fiche →", "View card →"),
+            "tcg_previous": ("← Précédent", "← Previous"),
+            "tcg_next": ("Suivant →", "Next →"),
+            "tcg_retry": ("Réessayer", "Retry"),
+        }.items():
+            self.query_one(f"#{identifier}", Button).label = text(*labels)
+        for identifier, labels in {
+            "tcg_name": ("Rechercher une carte par nom…", "Search for a card by name…"),
+            "tcg_hp": ("120 ou 50-100", "120 or 50-100"),
+            "tcg_illustrator": ("Nom de l’artiste…", "Artist’s name…"),
+        }.items():
+            self.query_one(f"#{identifier}", Input).placeholder = text(*labels)
+        for identifier, labels in {
+            "tcg_browse": (
+                "Parcourir les séries et extensions (f)",
+                "Browse series and sets (f)",
+            ),
+            "tcg_toggle_filters": (
+                "Afficher les filtres (Ctrl+F)",
+                "Show filters (Ctrl+F)",
+            ),
+            "tcg_reset": (
+                "Réinitialiser tous les filtres (r)",
+                "Reset all filters (r)",
+            ),
+        }.items():
+            self.query_one(f"#{identifier}", Button).tooltip = text(*labels)
+        sort = self.query_one("#tcg_sort", Select)
+        value = sort.value
+        with sort.prevent(Select.Changed):
+            sort.set_options(
+                [
+                    (text("Catalogue", "Catalogue"), "catalogue"),
+                    (text("Nom A → Z", "Name A → Z"), "name"),
+                    (text("HP croissants", "HP ascending"), "hp_asc"),
+                    (text("HP décroissants", "HP descending"), "hp_desc"),
+                ]
+            )
+            sort.value = value
+        table = self.query_one("#tcg_cards", DataTable)
+        with table.prevent(DataTable.RowHighlighted):
+            table.clear(columns=True)
+            self._add_columns()
+        self._load_catalogue()
 
     def on_show(self) -> None:
         if self._ready:
@@ -198,7 +339,7 @@ class TcgView(Vertical):
             self.call_after_refresh(self._focus_on_show)
 
     def _focus_on_show(self) -> None:
-        if self.is_mounted and self.region.height > 0 and self.app.focused is None:
+        if is_active_view(self) and self.region.height > 0 and self.app.focused is None:
             table = self.query_one("#tcg_cards", DataTable)
             if table.display:
                 table.focus()
@@ -212,6 +353,14 @@ class TcgView(Vertical):
         self.set_class(event.size.height < 30, "short")
 
     def _load_catalogue(self) -> None:
+        scope = self._scope
+        previous_language = self._active_language
+        selected_type = self.query_one("#tcg_type", Select).value
+        self._details_revision += 1
+        self.workers.cancel_group(self, "tcg-details")
+        if self._details_timer:
+            self._details_timer.stop()
+        self._display_card(None, loading=True)
         self._requested_language = user_data.get_tcg_lang()
         if (
             tcg_library.get_language_status().requested != self._requested_language
@@ -219,13 +368,21 @@ class TcgView(Vertical):
         ):
             tcg_library.set_language(self._requested_language)
         status = tcg_library.get_language_status()
+        self._active_language = status.active
         self._language_note = status.warning
         self._series = {serie.id: serie for serie in tcg_library.series}
         self._sets = {card_set.id: card_set for card_set in tcg_library.get_sets()}
-        self._scope = CatalogueScope()
+        self._scope = (
+            scope
+            if (
+                scope.set_id in self._sets
+                or (not scope.set_id and scope.serie_id in self._series)
+            )
+            else CatalogueScope()
+        )
         tree = self.query_one("#tcg_catalogue", Tree)
         tree.clear()
-        tree.root.set_label(Text("Toutes les cartes"))
+        tree.root.set_label(Text(text("Toutes les cartes", "All cards")))
         tree.root.expand()
         self._catalogue_nodes = {CatalogueScope(): tree.root}
         for serie in sorted(
@@ -243,14 +400,27 @@ class TcgView(Vertical):
                 )
         language = {"fr": "FR", "en": "EN"}.get(status.active, status.active or "—")
         self.query_one("#tcg_catalogue_count", Label).update(
-            f"{len(self._series)} séries · {len(self._sets)} extensions · {language}"
+            text(
+                "{series} séries · {sets} extensions · {language}",
+                "{series} series · {sets} sets · {language}",
+                series=len(self._series),
+                sets=len(self._sets),
+                language=language,
+            )
         )
         select = self.query_one("#tcg_type", Select)
         with select.prevent(Select.Changed):
             select.set_options(
-                [("Tous les types", "")] + [(t, t) for t in tcg_library.get_types()]
+                [(text("Tous les types", "All types"), "")]
+                + [(t, t) for t in tcg_library.get_types()]
             )
-            select.value = ""
+            translated_type = tcg_library.translate_type(
+                str(selected_type), previous_language, self._active_language
+            )
+            select.value = (
+                translated_type if translated_type in tcg_library.get_types() else ""
+            )
+        tree.move_cursor(self._catalogue_nodes.get(self._scope, tree.root))
         self._update_scope()
         self._queue_search(immediate=True)
 
@@ -262,14 +432,27 @@ class TcgView(Vertical):
             if serie and card_set
             else serie.name
             if serie
-            else "Toutes les cartes"
+            else text("Toutes les cartes", "All cards")
         )
         if card_set:
-            info = f"{len(card_set.cards)} cartes · Sortie : {card_set.release_date or '—'}"
+            info = text(
+                "{count} cartes · Sortie : {date}",
+                "{count} cards · Released: {date}",
+                count=len(card_set.cards),
+                date=card_set.release_date or "—",
+            )
         elif serie:
-            info = f"{len(serie.sets)} extensions · {sum(len(s.cards) for s in serie.sets)} cartes"
+            info = text(
+                "{sets} extensions · {cards} cartes",
+                "{sets} sets · {cards} cards",
+                sets=len(serie.sets),
+                cards=sum(len(s.cards) for s in serie.sets),
+            )
         else:
-            info = "Explorez le catalogue ou combinez les filtres ci-dessus."
+            info = text(
+                "Explorez le catalogue ou combinez les filtres ci-dessus.",
+                "Explore the catalogue or combine the filters above.",
+            )
         self.query_one("#tcg_scope", Label).update(title)
         self.query_one("#tcg_scope_info", Label).update(info)
 
@@ -318,15 +501,19 @@ class TcgView(Vertical):
             self._cards = []
             self.query_one("#tcg_retry", Button).display = False
             self._render_page(
-                empty_message="Corrigez le filtre HP pour rechercher des cartes."
+                empty_message=text(
+                    "Corrigez le filtre HP pour rechercher des cartes.",
+                    "Fix the HP filter to search for cards.",
+                )
             )
             return
         hp_input.remove_class("-invalid")
-        self._show_status("Recherche en cours…")
-        self.query_one("#tcg_count", Label).update("Recherche…")
+        self._show_status(text("Recherche en cours…", "Searching…"))
+        self.query_one("#tcg_count", Label).update(text("Recherche…", "Searching…"))
         self.query_one("#tcg_retry", Button).display = False
         self._search(
             self._search_revision,
+            self._active_language,
             dict(
                 name=self.query_one("#tcg_name", Input).value,
                 hp_min=hp_min,
@@ -339,20 +526,25 @@ class TcgView(Vertical):
         )
 
     @work(thread=True, exclusive=True, group="tcg-search", exit_on_error=False)
-    def _search(self, revision: int, filters: SearchFilters) -> None:
+    def _search(self, revision: int, language: str, filters: SearchFilters) -> None:
         worker = get_current_worker()
         try:
-            result = tcg_library.search_cards_online(**filters)
+            result = tcg_library.search_cards_online(**filters, language=language)
             note = result.warning
             if result.source == "online":
-                note = (
-                    note or "Résultats TCGdex · Les détails se chargent à la sélection."
+                note = note or text(
+                    "Résultats TCGdex · Les détails se chargent à la sélection.",
+                    "TCGdex results · Details load when you select a card.",
                 )
             elif result.source == "cache":
-                note = note or "Résultats enregistrés · disponibles hors connexion."
+                note = note or text(
+                    "Résultats enregistrés · disponibles hors connexion.",
+                    "Saved results · available offline.",
+                )
             else:
-                note = (
-                    note or "Catalogue local · Entrée pour ouvrir la fiche d’une carte."
+                note = note or text(
+                    "Catalogue local · Entrée pour ouvrir la fiche d’une carte.",
+                    "Local catalogue · Enter to view a card.",
                 )
             if not worker.is_cancelled:
                 self.post_message(self.SearchFinished(revision, result.cards, note))
@@ -377,10 +569,17 @@ class TcgView(Vertical):
             return
         self._cards, self._page = [], 0
         self._render_page(
-            empty_message="La recherche n’a pas abouti. Réessayez ou retirez les filtres avancés."
+            empty_message=text(
+                "La recherche n’a pas abouti. Réessayez ou retirez les filtres avancés.",
+                "Search failed. Try again or remove the advanced filters.",
+            )
         )
         self._show_status(
-            "TCGdex indisponible. Vérifiez votre connexion puis réessayez.", error=True
+            text(
+                "TCGdex indisponible. Vérifiez votre connexion puis réessayez.",
+                "TCGdex is unavailable. Check your connection and try again.",
+            ),
+            error=True,
         )
         self.query_one("#tcg_retry", Button).display = True
 
@@ -428,8 +627,13 @@ class TcgView(Vertical):
     def _render_page(
         self,
         *,
-        empty_message: str = "Aucune carte ne correspond à ces filtres.\nEssayez un autre nom ou réinitialisez la recherche.",
+        empty_message: str | None = None,
     ) -> None:
+        if empty_message is None:
+            empty_message = text(
+                "Aucune carte ne correspond à ces filtres.\nEssayez un autre nom ou réinitialisez la recherche.",
+                "No cards match these filters.\nTry another name or reset your search.",
+            )
         table = self.query_one("#tcg_cards", DataTable)
         selected_id = self._selected.id if self._selected else None
         self._page = min(self._page, max(0, (len(self._cards) - 1) // self.PAGE_SIZE))
@@ -446,8 +650,11 @@ class TcgView(Vertical):
         empty.display = not page
         table.display = bool(page)
         self.query_one("#tcg_count", Label).update(
-            f"{len(self._cards):,} carte{'s' if len(self._cards) != 1 else ''}".replace(
-                ",", " "
+            text(
+                "{count} carte{plural}",
+                "{count} card{plural}",
+                count=f"{len(self._cards):,}".replace(",", " "),
+                plural="s" if len(self._cards) != 1 else "",
             )
         )
         self.query_one("#tcg_page", Label).update(
@@ -498,8 +705,9 @@ class TcgView(Vertical):
         self._selected = card
         self._display_card(card, loading=bool(card and not card.details_loaded))
         if card and not card.details_loaded:
+            language = self._active_language
             self._details_timer = self.set_timer(
-                0.2, lambda: self._load_details(self._details_revision, card)
+                0.2, lambda: self._load_details(self._details_revision, card, language)
             )
 
     def _display_card(
@@ -512,15 +720,18 @@ class TcgView(Vertical):
         )
 
     @work(thread=True, exclusive=True, group="tcg-details", exit_on_error=False)
-    def _load_details(self, revision: int, card: Card) -> None:
+    def _load_details(self, revision: int, card: Card, language: str) -> None:
         worker = get_current_worker()
         try:
-            detailed = tcg_library.fetch_card_details(card.id)
+            detailed = tcg_library.fetch_card_details(card.id, language=language)
             error = None
         except TCGdexError, OSError, ValueError:
             detailed, error = (
                 card,
-                "Détails indisponibles. Vérifiez votre connexion puis réessayez.",
+                text(
+                    "Détails indisponibles. Vérifiez votre connexion puis réessayez.",
+                    "Details unavailable. Check your connection and try again.",
+                ),
             )
         if not worker.is_cancelled:
             self.post_message(self.DetailsFinished(revision, detailed, error))

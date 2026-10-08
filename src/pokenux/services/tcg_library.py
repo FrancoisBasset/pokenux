@@ -13,6 +13,7 @@ import time
 from typing import Any, cast
 import unicodedata
 
+from pokenux.services.localization import text
 from pokenux.models.tcg.card import Card
 from pokenux.models.tcg.serie import Serie
 from pokenux.models.tcg.set import Set
@@ -40,6 +41,8 @@ class SearchUnavailableError(tcgdex.TCGdexError):
 
 
 series: list[Serie] = []
+_catalogues: dict[str, list[Serie]] = {}
+_catalogue_generation = 0
 _language_status = LanguageStatus("en", "en", ())
 _details: dict[tuple[str, str], Card] = {}
 _SEARCH_CACHE_SECONDS = 24 * 60 * 60
@@ -85,10 +88,13 @@ def normalize(value: str) -> str:
 def set_language(language: str) -> LanguageStatus:
     """Load installed assets, exposing any fallback instead of silently failing."""
     global series, _language_status
+    if language not in ("fr", "en"):
+        raise ValueError("Language must be 'fr' or 'en'.")
     available = tuple(
         sorted(
             path.stem.removeprefix("tcg_")
             for path in (user_data.assets_path / "data").glob("tcg_*.json")
+            if path.stem in ("tcg_fr", "tcg_en")
         )
     )
     candidates = list(dict.fromkeys((language, "fr", "en", *available)))
@@ -98,41 +104,90 @@ def set_language(language: str) -> LanguageStatus:
         except OSError, ValueError, KeyError, TypeError:
             continue
         series = loaded
+        _catalogues[candidate] = loaded
         warning = (
             ""
             if candidate == language
             else (
-                f"Catalogue {language.upper()} indisponible : données {candidate.upper()} affichées."
+                text(
+                    "Catalogue {requested} indisponible : données {active} affichées.",
+                    "{requested} catalogue unavailable: showing {active} data.",
+                    requested=language.upper(),
+                    active=candidate.upper(),
+                )
             )
         )
         _language_status = LanguageStatus(language, candidate, available, warning)
         return _language_status
     series = []
     _language_status = LanguageStatus(
-        language, language, available, "Aucun catalogue TCG installé."
+        language,
+        language,
+        available,
+        text("Aucun catalogue TCG installé.", "No TCG catalogue is installed."),
     )
     return _language_status
 
 
 def get_language_status() -> LanguageStatus:
-    return _language_status
+    status = _language_status
+    warning = ""
+    if not series:
+        warning = text(
+            "Aucun catalogue TCG installé.", "No TCG catalogue is installed."
+        )
+    elif status.requested != status.active:
+        warning = text(
+            "Catalogue {requested} indisponible : données {active} affichées.",
+            "{requested} catalogue unavailable: showing {active} data.",
+            requested=status.requested.upper(),
+            active=status.active.upper(),
+        )
+    return LanguageStatus(status.requested, status.active, status.available, warning)
 
 
-def get_sets(serie_id: str | None = None) -> list[Set]:
+def reload_catalogues() -> LanguageStatus:
+    """Discard snapshots after an atomic asset update, keeping saves untouched."""
+    global _catalogue_generation
+    _catalogue_generation += 1
+    _catalogues.clear()
+    _details.clear()
+    return set_language(user_data.get_tcg_lang())
+
+
+def _series_for(language: str | None = None) -> list[Serie]:
+    language = language or _language_status.active
+    if language not in ("fr", "en"):
+        raise ValueError("Language must be 'fr' or 'en'.")
+    if language not in _catalogues:
+        _catalogues[language] = user_data.get_all_series(language)
+    return _catalogues[language]
+
+
+def get_sets(serie_id: str | None = None, *, language: str | None = None) -> list[Set]:
     return [
         card_set
-        for serie in series
+        for serie in _series_for(language)
         if not serie_id or serie.id == serie_id
         for card_set in serie.sets
     ]
 
 
-def get_types() -> list[str]:
-    types = set(_TYPE_NAMES.get(_language_status.active, ()))
-    for card_set in get_sets():
+def get_types(*, language: str | None = None) -> list[str]:
+    language = language or _language_status.active
+    types = set(_TYPE_NAMES.get(language, ()))
+    for card_set in get_sets(language=language):
         for card in card_set.cards:
-            types.update(_details.get((_language_status.active, card.id), card).types)
+            types.update(_details.get((language, card.id), card).types)
     return sorted(types, key=normalize)
+
+
+def translate_type(value: str, source: str, destination: str) -> str:
+    """Preserve a type filter when switching catalogue languages."""
+    try:
+        return _TYPE_NAMES[destination][_TYPE_NAMES[source].index(value)]
+    except KeyError, ValueError:
+        return value
 
 
 def get_serie_by_id(id: str) -> Serie | None:
@@ -160,12 +215,18 @@ def get_set_by_name(name: str) -> Set | None:
     )
 
 
-def get_card_by_id(id: str) -> Card | None:
-    cached = _details.get((_language_status.active, id))
+def get_card_by_id(id: str, *, language: str | None = None) -> Card | None:
+    language = language or _language_status.active
+    cached = _details.get((language, id))
     if cached is not None:
         return cached
     return next(
-        (card for card_set in get_sets() for card in card_set.cards if card.id == id),
+        (
+            card
+            for card_set in get_sets(language=language)
+            for card in card_set.cards
+            if card.id == id
+        ),
         None,
     )
 
@@ -185,13 +246,28 @@ def _validate_hp(hp: int | None, hp_min: int | None, hp_max: int | None) -> None
         and (isinstance(value, bool) or not isinstance(value, int) or value < 0)
         for value in (hp, hp_min, hp_max)
     ):
-        raise ValueError("Les PV doivent être des nombres entiers positifs ou nuls.")
+        raise ValueError(
+            text(
+                "Les PV doivent être des nombres entiers positifs ou nuls.",
+                "HP values must be non-negative whole numbers.",
+            )
+        )
     if hp_min is not None and hp_max is not None and hp_min > hp_max:
-        raise ValueError("Le minimum de PV doit être inférieur ou égal au maximum.")
+        raise ValueError(
+            text(
+                "Le minimum de PV doit être inférieur ou égal au maximum.",
+                "Minimum HP must not exceed maximum HP.",
+            )
+        )
     if hp is not None and (
         (hp_min is not None and hp < hp_min) or (hp_max is not None and hp > hp_max)
     ):
-        raise ValueError("Les filtres de PV sont incompatibles.")
+        raise ValueError(
+            text(
+                "Les filtres de PV sont incompatibles.",
+                "The HP filters are incompatible.",
+            )
+        )
 
 
 def search_cards(
@@ -204,13 +280,14 @@ def search_cards(
     illustrator: str = "",
     serie_id: str | None = None,
     set_id: str | None = None,
+    language: str | None = None,
 ) -> list[Card]:
     """Combine all filters locally. Unknown metadata never matches a filter."""
     _validate_hp(hp, hp_min, hp_max)
     name, card_type, illustrator = map(normalize, (name, card_type, illustrator))
     matches: list[Card] = []
-    language = _language_status.active
-    for card_set in get_sets(serie_id):
+    language = language or _language_status.active
+    for card_set in get_sets(serie_id, language=language):
         if set_id and card_set.id != set_id:
             continue
         for brief in card_set.cards:
@@ -233,7 +310,14 @@ def search_cards(
 
 def _cache_path(language: str, kind: str, key: str) -> Path:
     # Only digests become filenames, including language to separate translations.
-    digest = sha256(f"{language}:{kind}:{key}".encode()).hexdigest()
+    from pokenux.services.assets import AssetManager
+
+    version = AssetManager(user_data.path).status().version
+    # Preserve the existing legacy cache; updated bundles get a new namespace.
+    identity = f"{language}:{kind}:{key}"
+    if version:
+        identity = f"{version}:{identity}"
+    digest = sha256(identity.encode()).hexdigest()
     return user_data.path / "cache" / "tcg" / f"{digest}.json"
 
 
@@ -290,7 +374,10 @@ def _query_cards(
             return (
                 cached_cards,
                 "cache",
-                "TCGdex indisponible : derniers résultats en cache affichés.",
+                text(
+                    "TCGdex indisponible : derniers résultats en cache affichés.",
+                    "TCGdex unavailable: showing the last cached results.",
+                ),
             )
         raise
     _write_cache(path, {"fetched_at": time.time(), "cards": cards})
@@ -307,6 +394,7 @@ def search_cards_online(
     illustrator: str = "",
     serie_id: str | None = None,
     set_id: str | None = None,
+    language: str | None = None,
 ) -> SearchResult:
     """Use up to two filtered brief requests when local metadata is incomplete.
 
@@ -316,9 +404,12 @@ def search_cards_online(
     documented TCGdex range operation. No per-card requests are made here.
     """
     _validate_hp(hp, hp_min, hp_max)
+    language = language or _language_status.active
     if hp is None and hp_min is not None and hp_min == hp_max:
         hp = hp_min
-    candidates = search_cards(name=name, serie_id=serie_id, set_id=set_id)
+    candidates = search_cards(
+        name=name, serie_id=serie_id, set_id=set_id, language=language
+    )
     advanced = (
         hp is not None
         or hp_min is not None
@@ -340,13 +431,17 @@ def search_cards_online(
                 illustrator=illustrator,
                 serie_id=serie_id,
                 set_id=set_id,
+                language=language,
             )
         )
-    language = _language_status.active
     params: dict[str, str] = {}
     if card_type.strip():
         params["types"] = next(
-            (t for t in get_types() if normalize(t) == normalize(card_type)),
+            (
+                t
+                for t in get_types(language=language)
+                if normalize(t) == normalize(card_type)
+            ),
             card_type.strip(),
         )
     if illustrator.strip():
@@ -377,10 +472,11 @@ def search_cards_online(
     )
 
 
-def fetch_card_details(card_id: str) -> Card:
+def fetch_card_details(card_id: str, *, language: str | None = None) -> Card:
     """Fetch a selected card once, with a persistent cache per language."""
-    language = _language_status.active
-    existing = get_card_by_id(card_id)
+    language = language or _language_status.active
+    generation = _catalogue_generation
+    existing = get_card_by_id(card_id, language=language)
     if existing is not None and existing.details_loaded:
         return existing
     path = _cache_path(language, "card", card_id)
@@ -389,12 +485,20 @@ def fetch_card_details(card_id: str) -> Card:
     if not isinstance(data, dict) or data.get("id") != card_id or "name" not in data:
         data = tcgdex.fetch_card_by_id(language, card_id)
         if data.get("id") != card_id or "name" not in data:
-            raise tcgdex.TCGdexError("TCGdex a renvoyé une carte invalide.")
+            raise tcgdex.TCGdexError(
+                text(
+                    "TCGdex a renvoyé une carte invalide.",
+                    "TCGdex returned an invalid card.",
+                )
+            )
         _write_cache(path, {"card": data})
     card = Card.from_dict({**data, "details_loaded": True})
     if existing is not None and not card.image:
         card.image = existing.image
-    _details[(language, card_id)] = card
+    # A cancelled worker may finish after an asset update; do not reintroduce
+    # its old metadata into the newly loaded in-memory catalogue.
+    if generation == _catalogue_generation:
+        _details[(language, card_id)] = card
     return card
 
 
