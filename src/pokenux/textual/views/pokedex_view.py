@@ -17,6 +17,7 @@ from textual.widgets import (
 
 from pokenux.services import pokedex, user_data
 from pokenux.textual.utils import enums, i18n
+from pokenux.textual.utils.navigation import is_active_view
 from pokenux.textual.utils.pokemon_types import TYPE_COLORS
 from pokenux.textual.widgets.pokemon_details import PokemonDetails
 from pokenux.textual.widgets.pokemon_list import (
@@ -42,7 +43,9 @@ class PokedexView(Vertical):
         self.active_types: list[str] = []
         self.active_evolutions: list[str] = []
         self.pokemon_list = pokedex.filter_pokemon([], [], [])
-        self.type_names = {t["en"]: t["fr"] for t in user_data.get_all_types()}
+        self.type_names = {
+            t["en"]: t[user_data.get_pokemon_lang()] for t in user_data.get_all_types()
+        }
         self._ready = False
         self._filter_state: (
             tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], str, str, bool]
@@ -53,11 +56,22 @@ class PokedexView(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="pokedex_heading"):
             with Vertical(id="pokedex_intro"):
-                yield Label("◈  POKÉDEX NATIONAL", id="pokedex_title")
-                yield Label("Une fiche pour chaque rencontre.", id="pokedex_subtitle")
-            yield Button("f  Filtres", id="pokemon_toggle_filters")
-            yield Button("Fiche →", id="pokemon_open_details")
-            yield Button("← Liste", id="pokemon_back")
+                yield Label(
+                    i18n.text("◈  POKÉDEX NATIONAL", "◈  NATIONAL POKÉDEX"),
+                    id="pokedex_title",
+                )
+                yield Label(
+                    i18n.text(
+                        "Une fiche pour chaque rencontre.",
+                        "A profile for every encounter.",
+                    ),
+                    id="pokedex_subtitle",
+                )
+            yield Button(
+                i18n.text("f  Filtres", "f  Filters"), id="pokemon_toggle_filters"
+            )
+            yield Button(i18n.text("Fiche →", "Profile →"), id="pokemon_open_details")
+            yield Button(i18n.text("← Liste", "← List"), id="pokemon_back")
         with Horizontal(id="pokedex_toolbar"):
             yield Input(
                 placeholder=i18n.trans("search_pokemon"),
@@ -67,13 +81,20 @@ class PokedexView(Vertical):
             )
             yield Select(
                 options=enums.sort_by()
-                + [("Nom", "by_name"), ("Taille", "by_height"), ("Poids", "by_weight")],
+                + [
+                    (i18n.text("Nom", "Name"), "by_name"),
+                    (i18n.text("Taille", "Height"), "by_height"),
+                    (i18n.text("Poids", "Weight"), "by_weight"),
+                ],
                 value="by_number",
                 allow_blank=False,
                 id="pokemon_sort",
             )
             yield Select(
-                options=[("↑ Croissant", False), ("↓ Décroissant", True)],
+                options=[
+                    (i18n.text("↑ Croissant", "↑ Ascending"), False),
+                    (i18n.text("↓ Décroissant", "↓ Descending"), True),
+                ],
                 value=False,
                 allow_blank=False,
                 id="pokemon_sort_direction",
@@ -81,9 +102,15 @@ class PokedexView(Vertical):
 
         with Horizontal(id="pokedex_content"):
             with VerticalScroll(id="pokemon_filters"):
-                yield Label("AFFINER LA RECHERCHE", id="filters_title")
+                yield Label(
+                    i18n.text("AFFINER LA RECHERCHE", "REFINE YOUR SEARCH"),
+                    id="filters_title",
+                )
                 with Container(classes="filters_container"):
-                    yield Label("Génération")
+                    yield Label(
+                        i18n.text("Génération", "Generation"),
+                        id="pokemon_generation_heading",
+                    )
                     with Grid(id="generations_grid"):
                         for generation in user_data.get_all_generations():
                             yield Checkbox(
@@ -91,7 +118,7 @@ class PokedexView(Vertical):
                                 id=f"generation_{generation}",
                             )
                 with Container(classes="filters_container"):
-                    yield Label("Type")
+                    yield Label(i18n.text("Type", "Type"), id="pokemon_type_heading")
                     with Grid(id="types_grid"):
                         for code, name in self.type_names.items():
                             yield Checkbox(
@@ -99,24 +126,34 @@ class PokedexView(Vertical):
                                 id=f"type_{code}",
                             )
                 with Container(classes="filters_container"):
-                    yield Label("Évolution")
+                    yield Label(
+                        i18n.text("Évolution", "Evolution"),
+                        id="pokemon_evolution_heading",
+                    )
                     with Grid(id="evolutions_grid"):
                         for label, code in enums.evolutions():
                             yield Checkbox(label, id=f"evolution_{code}")
-                yield Button("Voir les résultats →", id="pokemon_apply_filters")
+                yield Button(
+                    i18n.text("Voir les résultats →", "Show results →"),
+                    id="pokemon_apply_filters",
+                )
 
             with Vertical(id="pokemon_table_panel"):
                 with Horizontal(id="pokemon_list_header"):
                     yield Label(f"{len(self.pokemon_list)} Pokémon", id="pokemon_count")
-                    yield Button("Tout effacer", id="pokemon_reset")
+                    yield Button(
+                        i18n.text("Tout effacer", "Clear all"), id="pokemon_reset"
+                    )
                 yield Horizontal(id="pokemon_filter_chips")
                 yield PokemonTableHeader(id="pokemon_table_header")
                 yield PokemonList(self.pokemon_list)
 
             yield PokemonDetails()
         yield Label(
-            "[bold]/[/] · Rechercher   [bold]↑ ↓[/] · Parcourir   "
-            + "[bold]Entrée[/] · Ouvrir la fiche   [bold]Échap[/] · Retour à la liste",
+            i18n.text(
+                "[bold]/[/] · Rechercher   [bold]↑ ↓[/] · Parcourir   [bold]Entrée[/] · Ouvrir la fiche   [bold]Échap[/] · Retour à la liste",
+                "[bold]/[/] · Search   [bold]↑ ↓[/] · Browse   [bold]Enter[/] · Open profile   [bold]Esc[/] · Back to list",
+            ),
             id="pokedex_hint",
         )
 
@@ -134,8 +171,83 @@ class PokedexView(Vertical):
                     init=False,
                 )
                 pane = None
-        await self.load_data()
+        await self.refresh_language()
         self.call_after_refresh(self.focus_table_on_show)
+
+    async def refresh_language(self) -> None:
+        """Translate mounted controls without discarding a search or selection."""
+        if not self._ready or not self.is_mounted:
+            return
+        from pokenux.textual.utils.translator import refresh_bindings
+
+        refresh_bindings(
+            self,
+            {
+                "focus_search": ("Recherche", "Search"),
+                "toggle_filters": ("Filtres", "Filters"),
+                "focus_sort": ("Trier", "Sort"),
+                "reset_filters": ("Réinitialiser", "Reset"),
+                "focus_pokemon": ("Retour", "Back"),
+            },
+        )
+        for selector, pair in {
+            "pokedex_subtitle": (
+                "Une fiche pour chaque rencontre.",
+                "A profile for every encounter.",
+            ),
+            "filters_title": ("AFFINER LA RECHERCHE", "REFINE YOUR SEARCH"),
+            "pokemon_generation_heading": ("Génération", "Generation"),
+            "pokemon_type_heading": ("Type", "Type"),
+            "pokemon_evolution_heading": ("Évolution", "Evolution"),
+            "pokedex_hint": (
+                "[bold]/[/] · Rechercher   [bold]↑ ↓[/] · Parcourir   [bold]Entrée[/] · Ouvrir la fiche   [bold]Échap[/] · Retour à la liste",
+                "[bold]/[/] · Search   [bold]↑ ↓[/] · Browse   [bold]Enter[/] · Open profile   [bold]Esc[/] · Back to list",
+            ),
+        }.items():
+            self.query_one(f"#{selector}", Label).update(i18n.text(*pair))
+        for selector, pair in {
+            "pokemon_open_details": ("Fiche →", "Profile →"),
+            "pokemon_back": ("← Liste", "← List"),
+            "pokemon_apply_filters": ("Voir les résultats →", "Show results →"),
+            "pokemon_reset": ("Tout effacer", "Clear all"),
+        }.items():
+            self.query_one(f"#{selector}", Button).label = i18n.text(*pair)
+        self.query_one("#pokemon_input", Input).placeholder = i18n.trans(
+            "search_pokemon"
+        )
+        options = enums.sort_by() + [
+            (i18n.text("Nom", "Name"), "by_name"),
+            (i18n.text("Taille", "Height"), "by_height"),
+            (i18n.text("Poids", "Weight"), "by_weight"),
+        ]
+        for selector, choices in (
+            ("pokemon_sort", options),
+            (
+                "pokemon_sort_direction",
+                [
+                    (i18n.text("↑ Croissant", "↑ Ascending"), False),
+                    (i18n.text("↓ Décroissant", "↓ Descending"), True),
+                ],
+            ),
+        ):
+            select = self.query_one(f"#{selector}", Select)
+            selected = select.value
+            with select.prevent(Select.Changed):
+                select.set_options(choices)
+                select.value = selected
+        self.type_names = {
+            t["en"]: t[user_data.get_pokemon_lang()] for t in user_data.get_all_types()
+        }
+        for code, name in self.type_names.items():
+            self.query_one(f"#type_{code}", Checkbox).label = Text(
+                name, style=TYPE_COLORS.get(name, "#e4ebf5")
+            )
+        for label, code in enums.evolutions():
+            self.query_one(f"#evolution_{code}", Checkbox).label = label
+        await self.query_one(PokemonTableHeader).refresh_language()
+        self._filter_state = None
+        await self.load_data()
+        await self.query_one(PokemonDetails).refresh_language()
 
     def on_show(self) -> None:
         if self._ready:
@@ -146,7 +258,7 @@ class PokedexView(Vertical):
             self.call_after_refresh(self.focus_table_on_show)
 
     def focus_table_on_show(self) -> None:
-        if self.is_mounted and self.region.height > 0:
+        if self.is_mounted and self.region.height > 0 and is_active_view(self):
             if self.query_one("#pokemon_table_panel").display:
                 self.query_one(PokemonList).focus()
             elif self.query_one(PokemonDetails).display:
@@ -175,7 +287,9 @@ class PokedexView(Vertical):
 
     def _update_navigation(self) -> None:
         self.query_one("#pokedex_title", Label).update(
-            "◈  POKÉDEX" if self.has_class("tiny") else "◈  POKÉDEX NATIONAL"
+            "◈  POKÉDEX"
+            if self.has_class("tiny")
+            else i18n.text("◈  POKÉDEX NATIONAL", "◈  NATIONAL POKÉDEX")
         )
         filtered = (
             len(self.active_generations)
@@ -183,7 +297,11 @@ class PokedexView(Vertical):
             + len(self.active_evolutions)
         )
         button = self.query_one("#pokemon_toggle_filters", Button)
-        button.label = f"f  Filtres · {filtered}" if filtered else "f  Filtres"
+        button.label = (
+            i18n.text("f  Filtres · {count}", "f  Filters · {count}", count=filtered)
+            if filtered
+            else i18n.text("f  Filtres", "f  Filters")
+        )
         button.set_class(self.has_class("filters-expanded"), "active")
         self.query_one("#pokemon_open_details", Button).disabled = not self.pokemon_list
 
@@ -196,7 +314,7 @@ class PokedexView(Vertical):
             if checkbox.value and checkbox.id
         ]
         self.active_types = [
-            self.type_names[checkbox.id.removeprefix("type_")]
+            checkbox.id.removeprefix("type_")
             for checkbox in self.query_one("#types_grid", Grid).query(Checkbox)
             if checkbox.value and checkbox.id
         ]
@@ -226,7 +344,7 @@ class PokedexView(Vertical):
             search=search,
             sort_by=sort_by,
             descending=descending,
-            language="fr",
+            language=user_data.get_pokemon_lang(),
         )
         self.query_one("#pokemon_count", Label).update(
             f"{len(self.pokemon_list)} / {len(pokedex.all_pokemon)} Pokémon"
@@ -245,7 +363,7 @@ class PokedexView(Vertical):
         filters += [
             (name, f"type_{code}", "filter-type")
             for code, name in self.type_names.items()
-            if name in self.active_types
+            if code in self.active_types
         ]
         labels = dict((code, label) for label, code in enums.evolutions())
         filters += [

@@ -22,5 +22,11 @@ class RandomPokemonWidget(Widget):
 
     def compose(self) -> ComposeResult:
         pokemon: Pokemon = pokedex.get_random_pokemon()
+        self.pokemon = pokemon
+        self.refresh_language()
 
         yield Image(f"{user_data.path}/assets/images/pokemon/{pokemon.pokedex_id}.png")
+
+    def refresh_language(self) -> None:
+        if hasattr(self, "pokemon"):
+            self.tooltip = self.pokemon.localized_name(user_data.get_pokemon_lang())

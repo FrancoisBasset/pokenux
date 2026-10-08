@@ -1,3 +1,5 @@
+from asyncio import Lock
+
 from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -6,6 +8,8 @@ from textual.message import Message
 from textual.widgets import Label
 
 from pokenux.models.pokemon.pokemon import Pokemon
+from pokenux.services import pokedex, user_data
+from pokenux.textual.utils import i18n
 from pokenux.textual.utils.pokemon_types import type_badges
 from pokenux.textual.widgets.pokemon_art import PokemonArt
 
@@ -26,8 +30,12 @@ class PokemonTableHeader(Horizontal):
         yield Label("", classes="pokemon-thumbnail")
         yield Label("POKÉMON", classes="pokemon-identity")
         yield Label("TYPES", classes="pokemon-types")
-        yield Label("Gén.", classes="pokemon-generation")
-        yield Label("Stade", classes="pokemon-stage")
+        yield Label(i18n.text("Gén.", "Gen."), classes="pokemon-generation")
+        yield Label(i18n.text("Stade", "Stage"), classes="pokemon-stage")
+
+    async def refresh_language(self) -> None:
+        if self.is_mounted:
+            await self.recompose()
 
     def on_resize(self, event: events.Resize) -> None:
         self.set_class(event.size.width < 72, "dense")
@@ -50,16 +58,26 @@ class PokemonRow(Horizontal):
         yield Label(f"#{pokemon.pokedex_id:04d}", classes="pokemon-number")
         yield PokemonArt(pokemon.sprites.regular, classes="pokemon-thumbnail")
         with Vertical(classes="pokemon-identity"):
-            yield Label(pokemon.name.fr, classes="pokemon-name", markup=False)
-            yield Label(pokemon.category, classes="pokemon-category", markup=False)
+            yield Label(
+                pokemon.localized_name(user_data.get_pokemon_lang()),
+                classes="pokemon-name",
+                markup=False,
+            )
+            yield Label(
+                pokemon.localized_category(user_data.get_pokemon_lang()),
+                classes="pokemon-category",
+                markup=False,
+            )
         yield Label(
-            type_badges(
-                t["name"] if isinstance(t, dict) else t.name for t in pokemon.types
-            ),
+            type_badges(pokedex.pokemon_types(pokemon)),
             classes="pokemon-types",
         )
         yield Label(generation_label(pokemon.generation), classes="pokemon-generation")
-        yield Label(pokemon.stage, classes="pokemon-stage")
+        yield Label(pokedex.stage_name(pokemon), classes="pokemon-stage")
+
+    async def refresh_language(self) -> None:
+        if self.is_mounted:
+            await self.recompose()
 
     def on_resize(self, event: events.Resize) -> None:
         self.set_class(event.size.width < 72, "dense")
@@ -99,6 +117,7 @@ class PokemonList(VerticalScroll):
         self.loaded_count = 0
         self.loading = False
         self.selected_index = 0
+        self._rows_lock = Lock()
 
     @property
     def selected_pokemon(self) -> Pokemon | None:
@@ -109,9 +128,10 @@ class PokemonList(VerticalScroll):
             yield from self.next_rows()
         else:
             yield Label(
-                "[bold]Aucun Pokémon trouvé[/]\n\n"
-                + "Essaie un autre nom ou retire quelques filtres.\n"
-                + "[dim]Tout effacer permet de retrouver tout le Pokédex.[/]",
+                i18n.text(
+                    "[bold]Aucun Pokémon trouvé[/]\n\nEssaie un autre nom ou retire quelques filtres.\n[dim]Tout effacer permet de retrouver tout le Pokédex.[/]",
+                    "[bold]No Pokémon found[/]\n\nTry another name or remove some filters.\n[dim]Clear all to browse the complete Pokédex.[/]",
+                ),
                 id="pokemon_empty",
             )
 
@@ -126,10 +146,15 @@ class PokemonList(VerticalScroll):
             yield row
 
     def on_mount(self) -> None:
+        self._translate_bindings()
         self.post_message(self.Selected(self.selected_pokemon))
         self.call_after_refresh(self.check_more)
 
     async def set_pokemon(self, pokemon_list: list[Pokemon]) -> None:
+        async with self._rows_lock:
+            await self._replace_pokemon(pokemon_list)
+
+    async def _replace_pokemon(self, pokemon_list: list[Pokemon]) -> None:
         previous = self.selected_pokemon
         self.pokemon_list = pokemon_list
         self.selected_index = next(
@@ -148,16 +173,31 @@ class PokemonList(VerticalScroll):
         else:
             await self.mount(
                 Label(
-                    "[bold]Aucun Pokémon trouvé[/]\n\n"
-                    + "Essaie un autre nom ou retire quelques filtres.\n"
-                    + "[dim]Tout effacer permet de retrouver tout le Pokédex.[/]",
+                    i18n.text(
+                        "[bold]Aucun Pokémon trouvé[/]\n\nEssaie un autre nom ou retire quelques filtres.\n[dim]Tout effacer permet de retrouver tout le Pokédex.[/]",
+                        "[bold]No Pokémon found[/]\n\nTry another name or remove some filters.\n[dim]Clear all to browse the complete Pokédex.[/]",
+                    ),
                     id="pokemon_empty",
                 )
             )
         self.post_message(self.Selected(self.selected_pokemon))
         self.call_after_refresh(self.check_more)
 
+    async def refresh_language(self) -> None:
+        self._translate_bindings()
+        if self.is_mounted:
+            await self.set_pokemon(self.pokemon_list)
+
+    def _translate_bindings(self) -> None:
+        from pokenux.textual.utils.translator import refresh_bindings
+
+        refresh_bindings(self, {"details": ("Détails", "Details")})
+
     async def select_index(self, index: int) -> None:
+        async with self._rows_lock:
+            await self._select_index(index)
+
+    async def _select_index(self, index: int) -> None:
         if not self.pokemon_list:
             return
         self.selected_index = max(0, min(index, len(self.pokemon_list) - 1))
@@ -219,6 +259,10 @@ class PokemonList(VerticalScroll):
             self.call_after_refresh(self.load_more)
 
     async def load_more(self) -> None:
+        async with self._rows_lock:
+            await self._load_more()
+
+    async def _load_more(self) -> None:
         try:
             if (
                 self.is_attached

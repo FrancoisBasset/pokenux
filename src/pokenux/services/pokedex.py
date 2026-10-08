@@ -1,4 +1,3 @@
-import locale
 import random
 import re
 import unicodedata
@@ -21,7 +20,7 @@ def get_pokemon_by_name(name: str, language: str = "en") -> Pokemon | None:
     pokemons: list[Pokemon] = [
         pokemon
         for pokemon in all_pokemon
-        if getattr(pokemon.name, language).lower() == name.lower()
+        if _search_text(pokemon.localized_name(language)) == _search_text(name)
     ]
     return pokemons[0] if len(pokemons) != 0 else None
 
@@ -34,11 +33,18 @@ def get_random_pokemon() -> Pokemon:
     return random.choice(all_pokemon)
 
 
-def get_all_pokemon_by_initial(letter: str) -> list[Pokemon]:
+def get_all_pokemon_by_initial(
+    letter: str, language: str | None = None
+) -> list[Pokemon]:
+    language = language or user_data.get_pokemon_lang()
     filtered_pokemon: list[Pokemon] = [
-        pokemon for pokemon in all_pokemon if pokemon.name.fr[0] == letter.upper()
+        pokemon
+        for pokemon in all_pokemon
+        if _search_text(pokemon.localized_name(language)).startswith(
+            _search_text(letter)
+        )
     ]
-    filtered_pokemon.sort(key=lambda p: locale.strxfrm(p.name.fr))
+    filtered_pokemon.sort(key=lambda p: _search_text(p.localized_name(language)))
 
     return filtered_pokemon
 
@@ -69,10 +75,13 @@ def filter_pokemon(
         ]
 
     if types:
+        type_codes = {type_code(name) for name in types}
         filtered_pokemon = [
             pokemon
             for pokemon in filtered_pokemon
-            if any(_type_name(type_) in types for type_ in pokemon.types)
+            if any(
+                type_code(_type_name(type_)) in type_codes for type_ in pokemon.types
+            )
         ]
 
     if evolutions:
@@ -118,7 +127,10 @@ def filter_pokemon(
             case "generation":
                 return pokemon.generation
             case "type":
-                return tuple(_search_text(_type_name(type_)) for type_ in pokemon.types)
+                return tuple(
+                    _search_text(type_name(_type_name(type_), name_language))
+                    for type_ in pokemon.types
+                )
             case "evolution":
                 return stage_order.get(pokemon.stage_code, 4)
             case "height":
@@ -137,7 +149,9 @@ def filter_pokemon(
 def _search_text(value: str) -> str:
     return "".join(
         character
-        for character in unicodedata.normalize("NFKD", value.casefold())
+        for character in unicodedata.normalize(
+            "NFKD", value.casefold().replace("œ", "oe").replace("æ", "ae")
+        )
         if not unicodedata.combining(character)
     )
 
@@ -150,6 +164,43 @@ def _measurement_value(value: str) -> float:
 def _type_name(pokemon_type: PokemonType | dict[str, str]) -> str:
     # from_dict retains type dictionaries; hand-built models may use dataclasses.
     return pokemon_type["name"] if isinstance(pokemon_type, dict) else pokemon_type.name
+
+
+def type_code(name: str) -> str:
+    """Use stable English catalogue IDs for filtering in either data language."""
+    normalized = _search_text(name)
+    for entry in _type_catalogue:
+        if normalized in (_search_text(entry["fr"]), _search_text(entry["en"])):
+            return entry["en"]
+    return name
+
+
+def type_name(name: str, language: str | None = None) -> str:
+    language = language or user_data.get_pokemon_lang()
+    code = type_code(name)
+    return next(
+        (
+            entry.get(language, entry["en"])
+            for entry in _type_catalogue
+            if entry["en"] == code
+        ),
+        name,
+    )
+
+
+def pokemon_types(pokemon: Pokemon, language: str | None = None) -> list[str]:
+    return [type_name(_type_name(entry), language) for entry in pokemon.types]
+
+
+def stage_name(pokemon: Pokemon, language: str | None = None) -> str:
+    language = language or user_data.get_pokemon_lang()
+    stages = {
+        "base": ("Base", "Basic"),
+        "stage_1": ("Niveau 1", "Stage 1"),
+        "stage_2": ("Niveau 2", "Stage 2"),
+        "no_evolution": ("Sans évolution", "No evolution"),
+    }
+    return stages.get(pokemon.stage_code, ("", ""))[language == "en"]
 
 
 _EVOLUTION_CODES = {
@@ -166,4 +217,12 @@ _EVOLUTION_CODES = {
 }
 
 
+_type_catalogue: list[dict[str, str]] = user_data.get_all_types()
 all_pokemon: list[Pokemon] = user_data.get_all_pokemon()
+
+
+def reload_catalogue() -> None:
+    """Refresh installed assets after a catalogue update without network access."""
+    global all_pokemon, _type_catalogue
+    all_pokemon = user_data.get_all_pokemon()
+    _type_catalogue = user_data.get_all_types()

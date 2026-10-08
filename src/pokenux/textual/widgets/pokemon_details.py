@@ -20,6 +20,9 @@ from textual.widgets import Button, Label, TabbedContent, TabPane, Tabs
 
 from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.models.tcg.card import Card
+from pokenux.services import pokedex, user_data
+from pokenux.textual.utils import i18n
+from pokenux.textual.utils.navigation import is_active_view
 from pokenux.textual.utils.pokemon_types import TYPE_COLORS, type_badges
 from pokenux.textual.widgets.pokemon_art import PokemonArt
 from pokenux.textual.widgets.remote_image import RemoteImage
@@ -409,6 +412,7 @@ class PokemonDetails(VerticalScroll):
             and self._pending_focus is not None
             and self.pokemon is not None
             and self.is_mounted
+            and is_active_view(self)
             and self.display
             and self.region.height > 0
             and (self.app.focused is expected_focus or self.app.focused is None)
@@ -434,6 +438,8 @@ class PokemonDetails(VerticalScroll):
         except OSError, ValueError:
             return []
 
+        if tcg_library.get_language_status().requested != user_data.get_tcg_lang():
+            tcg_library.set_language(user_data.get_tcg_lang())
         if self._series_cache is not tcg_library.series:
             index: dict[str, list[Card]] = defaultdict(list)
             for serie in tcg_library.series:
@@ -476,25 +482,59 @@ class PokemonDetails(VerticalScroll):
         return preview
 
     @staticmethod
-    def _evolution_nodes(pokemon: Pokemon) -> list[tuple[int, str, str]]:
-        nodes = [
-            (
-                int(_field(entry, "pokedex_id")),
-                str(_field(entry, "name")),
-                str(_field(entry, "condition", "")),
-            )
-            for entry in pokemon.evolution.pre or []
-        ]
-        nodes.append((pokemon.pokedex_id, pokemon.name.fr, ""))
-        nodes.extend(
-            (
-                int(_field(entry, "pokedex_id")),
-                str(_field(entry, "name")),
-                str(_field(entry, "condition", "")),
-            )
-            for entry in pokemon.evolution.next or []
+    def _evolution_name(entry: object) -> str:
+        language = user_data.get_pokemon_lang()
+        related = pokedex.get_pokemon_by_id(int(_field(entry, "pokedex_id")))
+        if related is not None:
+            return related.localized_name(language)
+        return (
+            str(_field(entry, "name_en" if language == "en" else "name"))
+            or f"#{_field(entry, 'pokedex_id')}"
         )
-        return nodes
+
+    @staticmethod
+    def _evolution_condition(entry: object) -> str:
+        if user_data.get_pokemon_lang() == "fr":
+            return str(_field(entry, "condition"))
+        translated = str(_field(entry, "condition_en"))
+        if translated or not _field(entry, "condition"):
+            return translated
+        return i18n.text(
+            "Condition indisponible en anglais",
+            "Evolution condition unavailable in English",
+        )
+
+    @classmethod
+    def _evolution_nodes(cls, pokemon: Pokemon) -> list[tuple[int, str, str]]:
+        return (
+            [
+                (
+                    int(_field(entry, "pokedex_id")),
+                    cls._evolution_name(entry),
+                    cls._evolution_condition(entry),
+                )
+                for entry in pokemon.evolution.pre or []
+            ]
+            + [
+                (
+                    pokemon.pokedex_id,
+                    pokemon.localized_name(user_data.get_pokemon_lang()),
+                    "",
+                )
+            ]
+            + [
+                (
+                    int(_field(entry, "pokedex_id")),
+                    cls._evolution_name(entry),
+                    cls._evolution_condition(entry),
+                )
+                for entry in pokemon.evolution.next or []
+            ]
+        )
+
+    async def refresh_language(self) -> None:
+        if self.is_mounted:
+            await self.recompose()
 
     @staticmethod
     def _branching(pokemon: Pokemon) -> bool:
@@ -520,7 +560,10 @@ class PokemonDetails(VerticalScroll):
         pokemon = self.pokemon
         if pokemon is None:
             yield Label(
-                "Sélectionnez un Pokémon\npour afficher ses détails.",
+                i18n.text(
+                    "Sélectionnez un Pokémon\npour afficher ses détails.",
+                    "Select a Pokémon\nto see its details.",
+                ),
                 classes="details-empty",
             )
             return
@@ -532,50 +575,104 @@ class PokemonDetails(VerticalScroll):
         with Horizontal(id="details_heading"):
             yield Label(f"N° {pokemon.pokedex_id:04d}", id="details_number")
             yield Label(
-                f"GÉNÉRATION {_roman(pokemon.generation)}", id="details_generation"
+                i18n.text(
+                    "GÉNÉRATION {number}",
+                    "GENERATION {number}",
+                    number=_roman(pokemon.generation),
+                ),
+                id="details_generation",
             )
 
         with Horizontal(id="details_summary"):
             yield self._sprite(pokemon.pokedex_id, "details-sprite")
             with Vertical(id="details_metadata"):
-                yield Label(pokemon.name.fr, id="details_title", markup=False)
-                yield Label(pokemon.category, id="details_category", markup=False)
                 yield Label(
-                    type_badges(
-                        str(_field(type_, "name", "?")) for type_ in pokemon.types
-                    ),
+                    pokemon.localized_name(user_data.get_pokemon_lang()),
+                    id="details_title",
+                    markup=False,
+                )
+                yield Label(
+                    pokemon.localized_category(user_data.get_pokemon_lang())
+                    or i18n.text("Catégorie indisponible", "Category unavailable"),
+                    id="details_category",
+                    markup=False,
+                )
+                yield Label(
+                    type_badges(pokedex.pokemon_types(pokemon)),
                     id="details_types",
                 )
 
         with Horizontal(id="details_measurements"):
             for index, (label, value) in enumerate(
-                (("TAILLE", pokemon.height), ("POIDS", pokemon.weight))
+                (
+                    (i18n.text("TAILLE", "HEIGHT"), pokemon.height),
+                    (i18n.text("POIDS", "WEIGHT"), pokemon.weight),
+                )
             ):
                 classes = "measurement measurement-divider" if index else "measurement"
                 with Vertical(classes=classes):
-                    yield Label(value, classes="measurement-value", markup=False)
+                    yield Label(
+                        value.replace(",", ".")
+                        if user_data.get_pokemon_lang() == "en"
+                        else value,
+                        classes="measurement-value",
+                        markup=False,
+                    )
                     yield Label(label, classes="measurement-label")
 
         with TabbedContent(id="details_tabs", initial=self._active_tab):
             with TabPane("Infos", id="pokemon_infos"):
                 with VerticalScroll(classes="details-pane"):
-                    yield Label("Talents", classes="details-section-title")
+                    yield Label(
+                        i18n.text("Talents", "Abilities"),
+                        classes="details-section-title",
+                    )
                     talents = Text()
                     for index, talent in enumerate(pokemon.talents):
                         if index:
                             _ = talents.append(" · ", style="#5c7796")
-                        _ = talents.append(talent.name)
+                        _ = talents.append(
+                            (
+                                talent.name_en
+                                or i18n.text(
+                                    "Nom anglais indisponible",
+                                    "English name unavailable",
+                                )
+                            )
+                            if user_data.get_pokemon_lang() == "en"
+                            else talent.name
+                        )
                         if talent.hidden:
-                            _ = talents.append(" (caché)", style="#99aabd")
-                    yield Label(talents or "Non renseignés", classes="profile-value")
-                    yield Label("Groupes d’œufs", classes="details-section-title")
+                            _ = talents.append(
+                                i18n.text(" (caché)", " (hidden)"), style="#99aabd"
+                            )
                     yield Label(
-                        " · ".join(pokemon.egg_groups or []) or "Non renseignés",
+                        talents or i18n.text("Non renseignés", "Not recorded"),
+                        classes="profile-value",
+                    )
+                    yield Label(
+                        i18n.text("Groupes d’œufs", "Egg groups"),
+                        classes="details-section-title",
+                    )
+                    yield Label(
+                        " · ".join(
+                            (
+                                pokemon.egg_groups_en
+                                if user_data.get_pokemon_lang() == "en"
+                                else pokemon.egg_groups
+                            )
+                            or []
+                        )
+                        or i18n.text("Non renseignés", "Not recorded"),
                         classes="profile-value",
                         markup=False,
                     )
                     yield Label(
-                        f"Cartes à collectionner · {len(cards)}",
+                        i18n.text(
+                            "Cartes à collectionner · {count}",
+                            "Trading cards · {count}",
+                            count=len(cards),
+                        ),
                         classes="cards-heading",
                     )
                     if cards:
@@ -583,27 +680,33 @@ class PokemonDetails(VerticalScroll):
                             for card in cards[:2]:
                                 yield self._card_preview(card)
                         yield Button(
-                            "Voir toutes les cartes →",
+                            i18n.text("Voir toutes les cartes →", "View all cards →"),
                             id="show_all_cards",
                             classes="show-cards",
                         )
                     else:
                         yield Label(
-                            "Aucune carte associée dans la collection locale.",
+                            i18n.text(
+                                "Aucune carte associée dans la collection locale.",
+                                "No related cards in the local catalogue.",
+                            ),
                             classes="details-note",
                         )
 
             with TabPane("Stats", id="pokemon_stats"):
                 with VerticalScroll(classes="details-pane"):
-                    yield Label("Statistiques de base", classes="details-section-title")
+                    yield Label(
+                        i18n.text("Statistiques de base", "Base stats"),
+                        classes="details-section-title",
+                    )
                     total = 0
                     for name, attribute in (
-                        ("PV", "hp"),
-                        ("Attaque", "attack"),
-                        ("Défense", "defense"),
-                        ("Att. spéciale", "special_attack"),
-                        ("Déf. spéciale", "special_defense"),
-                        ("Vitesse", "speed"),
+                        (i18n.text("PV", "HP"), "hp"),
+                        (i18n.text("Attaque", "Attack"), "attack"),
+                        (i18n.text("Défense", "Defense"), "defense"),
+                        (i18n.text("Att. spéciale", "Sp. Attack"), "special_attack"),
+                        (i18n.text("Déf. spéciale", "Sp. Defense"), "special_defense"),
+                        (i18n.text("Vitesse", "Speed"), "speed"),
                     ):
                         value = cast(int, getattr(pokemon.stats, attribute))
                         total += value
@@ -616,12 +719,14 @@ class PokemonDetails(VerticalScroll):
                             yield Label(bar, classes="stat-bar")
                     yield Label(f"TOTAL  {total}", classes="stat-total")
 
-            with TabPane("Évol.", id="pokemon_evolution"):
+            with TabPane(i18n.text("Évol.", "Evol."), id="pokemon_evolution"):
                 with VerticalScroll(classes="details-pane"):
                     branching = self._branching(pokemon)
                     with Vertical(id="details_chain"):
                         yield Label(
-                            "Évolutions possibles" if branching else "Lignée évolutive",
+                            i18n.text("Évolutions possibles", "Possible evolutions")
+                            if branching
+                            else i18n.text("Lignée évolutive", "Evolution chain"),
                             classes="details-section-title",
                         )
                         with HorizontalScroll(classes="evolution-strip"):
@@ -639,16 +744,29 @@ class PokemonDetails(VerticalScroll):
                                     if pokedex_id == pokemon.pokedex_id:
                                         classes += " evolution-current"
                                     yield Label(name, classes=classes, markup=False)
-                    yield Label(f"Stade : {pokemon.stage}", classes="details-note")
+                    yield Label(
+                        i18n.text(
+                            "Stade : {stage}",
+                            "Stage: {stage}",
+                            stage=pokedex.stage_name(pokemon),
+                        ),
+                        classes="details-note",
+                    )
                     for heading, entries in (
-                        ("Pré-évolutions", pokemon.evolution.pre or []),
-                        ("Évolutions", pokemon.evolution.next or []),
+                        (
+                            i18n.text("Pré-évolutions", "Previous evolutions"),
+                            pokemon.evolution.pre or [],
+                        ),
+                        (
+                            i18n.text("Évolutions", "Evolutions"),
+                            pokemon.evolution.next or [],
+                        ),
                     ):
                         if entries:
                             yield Label(heading, classes="details-section-title")
                             for entry in entries:
-                                name = str(_field(entry, "name"))
-                                condition = str(_field(entry, "condition", ""))
+                                name = self._evolution_name(entry)
+                                condition = self._evolution_condition(entry)
                                 yield Label(
                                     f"{name}\n{condition}" if condition else name,
                                     classes="evolution-detail",
@@ -656,13 +774,22 @@ class PokemonDetails(VerticalScroll):
                                 )
                     if not pokemon.evolution.pre and not pokemon.evolution.next:
                         yield Label(
-                            "Ce Pokémon n’a pas d’évolution.", classes="details-note"
+                            i18n.text(
+                                "Ce Pokémon n’a pas d’évolution.",
+                                "This Pokémon does not evolve.",
+                            ),
+                            classes="details-note",
                         )
 
             with TabPane(f"TCG {len(cards)}", id="pokemon_tcg"):
                 with VerticalScroll(classes="details-pane"):
                     yield Label(
-                        f"{len(cards)} cartes associées", classes="cards-heading"
+                        i18n.text(
+                            "{count} cartes associées",
+                            "{count} related cards",
+                            count=len(cards),
+                        ),
+                        classes="cards-heading",
                     )
                     if cards:
                         with Grid(classes="cards-grid"):
@@ -670,13 +797,18 @@ class PokemonDetails(VerticalScroll):
                                 yield self._card_preview(card)
                         if len(cards) > self._visible_cards:
                             yield Button(
-                                "Afficher les cartes suivantes",
+                                i18n.text(
+                                    "Afficher les cartes suivantes", "Show more cards"
+                                ),
                                 id="more_cards",
                                 classes="show-cards",
                             )
                     else:
                         yield Label(
-                            "Aucune carte associée dans la collection locale.",
+                            i18n.text(
+                                "Aucune carte associée dans la collection locale.",
+                                "No related cards in the local catalogue.",
+                            ),
                             classes="details-note",
                         )
 

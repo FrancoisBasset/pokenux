@@ -27,6 +27,33 @@ TYPE_COLORS: dict[str, str] = {
 }
 
 
+# Both official name sets share the same visual type identity.
+for _english, _french in zip(
+    (
+        "Normal",
+        "Fire",
+        "Water",
+        "Grass",
+        "Electric",
+        "Ice",
+        "Fighting",
+        "Poison",
+        "Ground",
+        "Flying",
+        "Psychic",
+        "Bug",
+        "Rock",
+        "Ghost",
+        "Dragon",
+        "Dark",
+        "Steel",
+        "Fairy",
+    ),
+    tuple(TYPE_COLORS),
+):
+    TYPE_COLORS[_english] = TYPE_COLORS[_french]
+
+
 def type_badges(names: Iterable[str]) -> Text:
     badges = Text()
     for index, name in enumerate(names):
