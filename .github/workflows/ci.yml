@@ -44,7 +44,7 @@ jobs:
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/pokenux-wheel/bin/pokenux" --version
           "$RUNNER_TEMP/pokenux-wheel/bin/pokenux" --check
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-distributions
           path: dist/python/*
@@ -91,7 +91,7 @@ jobs:
               test ! -d /opt/pokenux
             '
           done
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: linux-${{ matrix.arch }}
           path: |
@@ -128,7 +128,7 @@ jobs:
             test ! -d /opt/pokenux
             cp ./*.pkg.tar.zst /packages/
           '
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: arch-x86_64
           path: dist/*.pkg.tar.zst
