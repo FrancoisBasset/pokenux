@@ -8,6 +8,7 @@ import tomlkit
 
 from pokenux.models.pokemon.pokemon import Pokemon
 from pokenux.models.tcg.serie import Serie
+from pokenux.paths import assets_are_missing as missing_assets, data_directory
 
 
 path: Path
@@ -19,7 +20,7 @@ config_file: tomlkit.TOMLDocument
 def init():
     global path, config_path, assets_path, config_file
 
-    path = Path.home() / ".local" / "share" / "pokenux"
+    path = data_directory()
     assets_path = path / "assets"
     config_path = path / "config.toml"
 
@@ -31,12 +32,7 @@ def init():
 
 
 def assets_are_missing() -> bool:
-    data_path = assets_path / "data"
-    required_files = ("pokemon.json", "generations.json", "types.json")
-    if not all((data_path / filename).is_file() for filename in required_files):
-        return True
-    # The published archive may only contain FR; TCG supports language fallback.
-    return not any(file.is_file() for file in data_path.glob("tcg_*.json"))
+    return missing_assets(assets_path)
 
 
 def download_assets(cancelled: Callable[[], bool]) -> bool:

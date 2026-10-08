@@ -1,170 +1,125 @@
-from importlib import import_module
+"""Command-line entry point; inspection commands never start the UI."""
 
-from pokenux.models.pokemon.pokemon import Pokemon
-from pokenux.models.tcg.card import Card
-from pokenux.models.tcg.serie import Serie
-from pokenux.models.tcg.set import Set
-from pokenux.textual.pokenux import Pokenux
+import argparse
+from collections.abc import Sequence
+from contextlib import closing
+import gettext
+from importlib import import_module, metadata, resources
+import platform
+from typing import cast
 
-
-def show_all():
-    from pokenux.services import tcg_library
-
-    for serie in tcg_library.series:
-        print(f"Serie: {serie.name} {serie.id}")
-        for set in serie.sets:
-            print(f"  Set: {set.name} {set.id}")
-            for card in set.cards:
-                print(f"    Card: {card.name} {card.id}")
+from pokenux import __version__
+from pokenux.paths import assets_are_missing, data_directory
 
 
-def guess_anagram():
-    from pokenux.services.games import anagram
-
-    [prompt, solution] = anagram.get_random_pokemon_anagram()
-
-    try_count: int = 0
-    found: bool = False
-
-    discovered: str = ""
-
-    while try_count < len(solution):
-        guess = input(f"{prompt} : ")
-        if guess == solution:
-            found = True
-            break
-
-        try_count += 1
-
-        discovered: str = "".join([solution[i] for i in range(try_count)])
-        print(f"[{discovered}]")
-
-    if found:
-        print("Correct !")
-    else:
-        print("Raté !")
+_DEPENDENCIES = (
+    ("requests", "requests"),
+    ("rich", "rich.console"),
+    ("textual", "textual.app"),
+    ("textual-image", "textual_image"),
+    ("Pillow", "PIL.Image"),
+    ("tomlkit", "tomlkit"),
+)
+_CSS_FILES = (
+    "style.css",
+    "new_view.css",
+    "pokedex_view.css",
+    "tcg_view.css",
+    "quiz_view.css",
+    "simulator_view.css",
+)
 
 
-def test():
-    from pokenux.services import pokedex, tcg_library
-
-    chochodile: Pokemon = pokedex.get_pokemon_by_name("Chochodile", "fr")
-    print(chochodile.name.fr)
-
-    serie: Serie = tcg_library.get_serie_by_id("sv")
-    print(serie.name)
-    set: Set = tcg_library.get_set_by_id("sv02")
-    print(set.name)
-
-    card: Card = tcg_library.get_card_by_id("sv02-203")
-    print(card.name)
-
-
-def search_pokemon_card():
-    from pokenux.services import tcg_library
-
-    chochodiles: list[Card] = tcg_library.get_cards_by_name("Chochodile")
-    for chochodile in chochodiles:
-        set: Set = tcg_library.get_set_by_id(chochodile.set_id)
-        serie: Serie = tcg_library.get_serie_by_id(set.serie_id)
-        print(
-            f"Chochodile card: {serie.name} {set.name} {chochodile.name} {chochodile.id} {set.name}"
-        )
-
-
-def guess_evolution():
-    from pokenux.services.games import evolution
-
-    [prompt, solution] = evolution.get_random_pokemon_evolution()
-
-    guess: str = input(f"Évolution de {prompt.capitalize()} : ")
-    if guess == solution:
-        print("Correct !")
-    else:
-        print(f"Non, c'est {solution.capitalize()}")
-
-
-def guess_pre_evolution():
-    from pokenux.services.games import evolution
-
-    [solution, prompt] = evolution.get_random_pokemon_evolution()
-
-    guess: str = input(f"Pré-évolution de {prompt.capitalize()} : ")
-    if guess == solution:
-        print("Correct !")
-    else:
-        print(f"Non, c'est {solution.capitalize()}")
-
-
-def complete_name():
-    from pokenux.services import pokedex
-
-    pokemon_name: str = pokedex.get_random_pokemon().name.fr.lower()
-
-    response: str = ""
-
-    for i in range(1, 6):
-        response = input(f"{i}/5 {pokemon_name[0:4]} : ").lower()
-
-        if response == pokemon_name:
-            print("Correct !")
-            return
-
-    print(f"Perdu, c'est {pokemon_name}")
-
-
-def guess_all_pokemon_by_initial():
-    from pokenux.services import pokedex
-
-    letter: str = input("Lettre : ")
-
-    all_pokemon_to_guess = pokedex.get_all_pokemon_by_initial(letter)
-    all_pokemon_names = [pokemon.name.fr.lower() for pokemon in all_pokemon_to_guess]
-
-    count: int = 0
-
-    while len(all_pokemon_names) > 0:
+def check_installation() -> int:
+    """Check code and packaged resources offline, without creating user data."""
+    print(f"Pokénux {__version__}")
+    print(
+        f"Python {platform.python_version()} · {platform.system()} {platform.machine()}"
+    )
+    errors: list[str] = []
+    for distribution, module in _DEPENDENCIES:
         try:
-            pokemon_name: str = input(
-                f"Pokémon en {letter} ({count}/{len(all_pokemon_to_guess)}) "
+            _ = import_module(module)
+            installed = metadata.version(distribution)
+        except Exception as error:
+            errors.append(f"{distribution}: {error}")
+        else:
+            print(f"OK   {distribution} {installed}")
+
+    try:
+        # SQLite is a Python runtime component, not a PyPI dependency.
+        from sqlite3 import connect
+
+        with closing(connect(":memory:")) as connection:
+            _ = connection.execute("SELECT 1")
+        print("OK   SQLite")
+    except Exception as error:
+        errors.append(f"SQLite: {error}")
+
+    package = resources.files("pokenux")
+    for filename in _CSS_FILES:
+        stylesheet = package.joinpath("textual", "css", filename)
+        try:
+            if not stylesheet.read_text(encoding="utf-8").strip():
+                raise ValueError("empty stylesheet")
+        except (OSError, ValueError) as error:
+            errors.append(f"CSS {filename}: {error}")
+    for language in ("en", "fr"):
+        translation = package.joinpath("locales", language, "LC_MESSAGES", "pokenux.mo")
+        try:
+            with translation.open("rb") as stream:
+                _ = gettext.GNUTranslations(stream)
+        except Exception as error:
+            errors.append(f"Translation {language}: {error}")
+
+    if not errors:
+        print("OK   Packaged stylesheets and translations")
+    location = data_directory()
+    print(f"Data {location}")
+    try:
+        missing = assets_are_missing(location / "assets")
+    except OSError as error:
+        # Catalogue availability does not determine whether installation works.
+        print(f"INFO Local catalogue cannot be inspected: {error}")
+    else:
+        if missing:
+            print(
+                "INFO Local catalogue absent; first launch downloads it (network required)."
             )
-        except KeyboardInterrupt:
-            print("\nPokemon restants :")
-            for pokemon_name in all_pokemon_names:
-                print(f"- {pokemon_name.capitalize()}")
-            break
-
-        if pokemon_name in all_pokemon_names:
-            all_pokemon_names.remove(pokemon_name)
-            count += 1
+        else:
+            print("OK   Local catalogue present")
+    for error in errors:
+        print(f"FAIL {error}")
+    print("Installation check failed." if errors else "Installation ready.")
+    return 1 if errors else 0
 
 
-def guess_pokemon_by_pokedex_id():
-    from pokenux.services import pokedex
-
-    pokemon: Pokemon = pokedex.get_random_pokemon()
-
-    response: str = input(f"Nom du Pokémon #{pokemon.pokedex_id} : ")
-    if response.lower() == pokemon.name.fr.lower():
-        print("Correct !")
-    else:
-        print(f"Non ! C'est {pokemon.name.fr}")
+class _Options(argparse.Namespace):
+    check: bool = False
 
 
-def guess_pokemon_id():
-    from pokenux.services import pokedex
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="pokenux",
+        description="Explore Pokémon, play quizzes and collect cards in your terminal.",
+        epilog="Run without arguments to open the app. First launch downloads the catalogue.",
+    )
+    _ = parser.add_argument(
+        "--version", action="version", version=f"Pokénux {__version__}"
+    )
+    _ = parser.add_argument(
+        "--check",
+        action="store_true",
+        help="check the installation offline without opening the app or changing user data",
+    )
+    options = parser.parse_args(argv, namespace=_Options())
+    if options.check:
+        return check_installation()
 
-    pokemon: Pokemon = pokedex.get_random_pokemon()
-
-    response: str = input(f"ID du Pokémon {pokemon.name.fr} : ")
-    if response.lower() == pokemon.pokedex_id:
-        print("Correct !")
-    else:
-        print(f"Non ! C'est {pokemon.pokedex_id}")
-
-
-def main():
     # Probe graphics support before Textual starts reading terminal responses.
-    # This loads the image renderer without importing the asset-backed views.
-    import_module("textual_image.widget")
-    Pokenux().run()
+    # User data and asset-backed views stay unloaded for --help/--version/--check.
+    _ = import_module("textual_image.widget")
+    from pokenux.textual.pokenux import Pokenux
+
+    _ = cast(object, Pokenux().run())
+    return 0
