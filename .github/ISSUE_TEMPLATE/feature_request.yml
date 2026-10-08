@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest a focused improvement to Pokénux.
+title: "idea: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to improve?
+      description: Describe the player or contributor problem and when it occurs.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested behaviour
+      description: Describe the experience you would like. Alternatives and small mockups are welcome.
+    validations:
+      required: true
