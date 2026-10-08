@@ -1,14 +1,15 @@
 Header {
-    height: 3;
-    padding: 1;
+    height: 1;
+    padding: 0 1;
     text-style: bold;
-    color: red;
-    background: white;
+    color: #e4ebf5;
+    background: #152235;
 }
 
-Tabs {
-    height: 4;
-}
+Header HeaderIcon { color: #f28c91; }
+Footer { background: #152235; color: #99aabd; }
+Footer > .footer--key { background: #25364d; color: #efc47d; }
+Footer > .footer--description { color: #b7c5d7; }
 
 #tabbed_content,
 #tabbed_content > ContentSwitcher,
@@ -16,7 +17,19 @@ Tabs {
     height: 1fr;
 }
 
-Tab {
-    height: 3;
-    padding: 1 2;
+#tabbed_content > ContentSwitcher > TabPane { padding: 0; }
+
+#tabbed_content > ContentTabs {
+    height: 2;
+    background: #0d1725;
 }
+#tabbed_content > ContentTabs Tabs { height: 2; }
+#tabbed_content > ContentTabs Tab {
+    height: 1;
+    padding: 0 2;
+    color: #99aabd;
+    background: #0d1725;
+}
+#tabbed_content > ContentTabs Tab.-active { color: #efc47d; text-style: bold; }
+#tabbed_content > ContentTabs Underline { color: #efc47d; background: #0d1725; }
+#tabbed_content > ContentTabs Underline > .underline--bar { color: #efc47d; }

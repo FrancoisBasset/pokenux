@@ -49,7 +49,11 @@ metadata, advanced searches and selected-card details load from TCGdex in the
 background and are cached locally. Unavailable searches show a retry action.
 Name searches and catalogue navigation work offline.
 
-Open **TCG** from the **+** tab. Use `/` to search, `f` to browse series,
+The **Accueil** tab is the main menu: choose **Pokédex**, **Cartes TCG**, **Quiz**,
+or **Boosters** with the mouse, Tab/Enter, or keys **1–4**. Each activity opens in
+its own tab. The menu switches to a single scrolling column in narrow terminals.
+
+Open **Cartes TCG** from **Accueil**. Use `/` to search, `f` to browse series,
 `Space` to expand a series, `Ctrl+F` for filters, `Enter` to open a card, and
 `Escape` to return to the list. HP accepts `120` or an inclusive range such as
 `50-100`. Filters apply within the selected series or expansion; **Effacer**
@@ -63,7 +67,7 @@ reads installed files from `~/.local/share/pokenux/assets/data`.
 
 ### Quizzes
 
-Open **Quiz** from the **+** tab, choose **Pokédex** or **TCG**, then a game.
+Open **Quiz** from **Accueil**, choose **Pokédex** or **TCG**, then a game.
 Sessions contain 5, 10 or 20 questions, or run indefinitely for practice.
 Every answer is typed: case, accents, spaces, hyphens and punctuation are
 ignored. Pokémon names are accepted in French and English.

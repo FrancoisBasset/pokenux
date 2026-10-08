@@ -10,9 +10,11 @@ from pokenux.textual.views.parameters_view import ParametersView
 
 
 class Pokenux(App):
+    TITLE = "Pokénux"
     BINDINGS = bindings.get_main_bindings()
     CSS_PATH = [
         "css/style.css",
+        "css/new_view.css",
         "css/pokedex_view.css",
         "css/tcg_view.css",
         "css/quiz_view.css",
@@ -31,7 +33,7 @@ class Pokenux(App):
         yield Header(name="Pokenux", icon="◒")
 
         with TabbedContent(id="tabbed_content"):
-            yield TabPane("+", id="new_tab_tab")
+            yield TabPane("⌂ Accueil", id="new_tab_tab")
 
         yield Footer()
 

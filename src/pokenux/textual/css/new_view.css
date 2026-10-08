@@ -1,0 +1,96 @@
+NewView {
+    height: 1fr;
+    background: #080f19;
+    color: #e4ebf5;
+    padding: 1 4;
+    align: center top;
+    scrollbar-size: 1 1;
+    scrollbar-background: #080f19;
+    scrollbar-color: #33445b;
+    scrollbar-color-hover: #7189a8;
+    scrollbar-color-active: #efc47d;
+}
+
+NewView #menu_content {
+    width: 1fr;
+    max-width: 104;
+    height: auto;
+}
+
+NewView #menu_hero {
+    height: 7;
+    margin-bottom: 1;
+    border-bottom: solid #263449;
+}
+
+NewView #menu_intro { width: 1fr; height: auto; }
+NewView #menu_eyebrow {
+    height: 1;
+    color: #efc47d;
+    text-style: bold;
+}
+NewView #menu_title {
+    height: 1;
+    margin-top: 1;
+    color: #f2f5fc;
+    text-style: bold;
+}
+NewView #menu_subtitle { height: auto; margin-top: 1; color: #99aabd; }
+NewView #menu_emblem { width: 19; height: 5; content-align: right middle; }
+NewView #menu_section { height: 1; color: #99aabd; margin-bottom: 1; }
+
+NewView #menu_grid {
+    height: auto;
+    grid-size: 2;
+    grid-columns: 1fr 1fr;
+    grid-rows: 8;
+    grid-gutter: 1 2;
+}
+
+NewView .menu-card {
+    width: 1fr;
+    height: 8;
+    min-width: 0;
+    padding: 0 2;
+    border: round #2c3c52;
+    background: #111d2d;
+    color: #e4ebf5;
+    text-style: none;
+    text-align: left;
+    content-align: left middle;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+NewView #pokedex_button { border: round #365779; }
+NewView #tcg_button { border: round #305b55; }
+NewView #quiz_button { border: round #53456b; }
+NewView #simulator_button { border: round #605139; }
+
+NewView .menu-card:hover { background: #19293d; }
+NewView #pokedex_button:focus { border: round #83b7ff; background: #172d48; }
+NewView #tcg_button:focus { border: round #79d7be; background: #12342f; }
+NewView #quiz_button:focus { border: round #c9a1f4; background: #2b213e; }
+NewView #simulator_button:focus { border: round #efc47d; background: #352c1e; }
+
+NewView #menu_shortcuts {
+    height: auto;
+    margin-top: 1;
+    color: #99aabd;
+    width: 1fr;
+}
+NewView #menu_hint { height: auto; color: #7d90aa; width: 1fr; }
+
+NewView.narrow { padding: 1 2; }
+NewView.narrow #menu_grid { grid-size: 1; grid-columns: 1fr; }
+NewView.narrow #menu_emblem { display: none; }
+
+NewView.compact { padding: 0 2; }
+NewView.compact #menu_hero { height: 4; margin-bottom: 0; }
+NewView.compact #menu_eyebrow,
+NewView.compact #menu_emblem,
+NewView.compact #menu_section,
+NewView.compact #menu_hint { display: none; }
+NewView.compact #menu_title { margin-top: 0; }
+NewView.compact #menu_subtitle { margin-top: 0; }
+NewView.compact #menu_grid { grid-rows: 6; grid-gutter: 1 2; }
+NewView.compact .menu-card { height: 6; padding: 0 1; }
