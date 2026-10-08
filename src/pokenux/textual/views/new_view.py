@@ -1,3 +1,5 @@
+from itertools import count
+
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal
@@ -12,6 +14,7 @@ from pokenux.textual.views.tcg_view import TcgView
 class NewView(Horizontal):
     def __init__(self, tabbed_content: TabbedContent):
         self.tabbed_content: TabbedContent = tabbed_content
+        self._tab_ids: count[int] = count(1)
         super().__init__(id="new_view")
 
     def compose(self) -> ComposeResult:
@@ -38,7 +41,7 @@ class NewView(Horizontal):
         await self.open_new_tab("Simulator", SimulatorView)
 
     async def open_new_tab(self, label: str, tab_class: type):
-        tab_id: str = "tab" + str(self.tabbed_content.tab_count)
+        tab_id = f"tab{next(self._tab_ids)}"
         new_pane = TabPane(
             f"{label} [bold @click=app.close_tab({tab_id!r})]×[/]",
             tab_class(),
