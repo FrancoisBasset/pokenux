@@ -1,0 +1,99 @@
+name: Prepare bilingual assets
+
+on:
+  push:
+    tags: ['assets-v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Asset content version (MAJOR.MINOR.PATCH); builds an artifact without publishing'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assets-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          version: '0.11.23'
+      - name: Validate independent content version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          version="$INPUT_VERSION"
+          if [ "$EVENT_NAME" = push ]; then version="${REF_NAME#assets-v}"; fi
+          uv run --frozen python -c 'import sys; from pokenux.services.assets import version_tuple; version_tuple(sys.argv[1])' "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Test archive validation and rollback
+        run: uv run --frozen python -m unittest discover -s tests -p test_assets.py -v
+      - name: Prepare FR and EN catalogues without artwork
+        env:
+          ASSET_VERSION: ${{ steps.version.outputs.version }}
+        run: uv run --frozen python scripts/prepare_assets.py --version "$ASSET_VERSION" --output dist/assets
+      - name: Verify published bytes
+        working-directory: dist/assets
+        run: sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: assets-${{ steps.version.outputs.version }}
+          path: dist/assets/*
+          if-no-files-found: error
+
+  draft:
+    if: github.event_name == 'push'
+    needs: prepare
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: assets-${{ needs.prepare.outputs.version }}
+          path: dist/assets
+      - name: Create an unpublished asset release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ASSET_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          tag="assets-v$ASSET_VERSION"
+          cat > "$RUNNER_TEMP/asset-notes.md" <<'NOTES'
+          French and English Pokémon and TCG catalogues, schema 1.
+          Images are downloaded on demand and are not bundled.
+
+          This draft does not change the application update channel. After
+          review and publication, promote its assets-manifest.json to the
+          assets-v1 channel as described in docs/assets.md.
+
+          Data: Tyradex, TCGdex and PokeAPI. Pokémon names and artwork remain
+          the property of their respective rights holders.
+          NOTES
+          if gh release view "$tag" --json isDraft > "$RUNNER_TEMP/asset-state.json"; then
+            test "$(jq -r .isDraft "$RUNNER_TEMP/asset-state.json")" = true || {
+              echo 'Refusing to replace a published asset version.' >&2
+              exit 1
+            }
+            gh release edit "$tag" --notes-file "$RUNNER_TEMP/asset-notes.md"
+          else
+            gh release create "$tag" --verify-tag --draft --latest=false \
+              --title "Pokénux assets $ASSET_VERSION" --notes-file "$RUNNER_TEMP/asset-notes.md"
+          fi
+          gh release upload "$tag" dist/assets/* --clobber

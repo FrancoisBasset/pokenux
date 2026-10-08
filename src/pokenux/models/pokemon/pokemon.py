@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pokenux.models.pokemon.pokemon_name import PokemonName
 from pokenux.models.pokemon.pokemon_sprite import PokemonSprite
@@ -27,6 +27,14 @@ class Pokemon:
     egg_groups: list[str]
     sex: PokemonSex | None
     catch_rate: int
+    category_en: str = ""
+    egg_groups_en: list[str] = field(default_factory=list)
+
+    def localized_name(self, language: str) -> str:
+        return self.name.en if language == "en" else self.name.fr
+
+    def localized_category(self, language: str) -> str:
+        return self.category_en if language == "en" else self.category
 
     @classmethod
     def from_dict(cls, data: dict) -> Pokemon:

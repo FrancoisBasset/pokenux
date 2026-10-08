@@ -6,3 +6,5 @@ class PokemonEvolution:
     pokedex_id: int
     name: str
     condition: str
+    name_en: str = ""
+    condition_en: str = ""
